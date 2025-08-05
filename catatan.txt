@@ -1,0 +1,311 @@
+Database MySQLi dengan Laragon
+Kita akan membuat database dengan Laragon (misalnya bernama jkt48_merchandise_db) dan merancang tabel-tabelnya sebagai berikut. Penamaan tabel dan kolom akan menggunakan konvensi snake_case untuk konsistensi.
+
+1. Tabel products (Produk Utama)
+Tabel ini akan menyimpan informasi detail tentang setiap produk. Penyesuaian dari product awal Anda:
+
+product_id: INT (Primary Key, Auto Increment) - ID unik untuk setiap produk.
+
+category_id: INT (Foreign Key ke product_categories.category_id) - Menghubungkan produk dengan kategori.
+
+product_name: VARCHAR(255) - Judul/nama produk (misal: "JKT48 Official T-Shirts - [Nama Acara/Member]").
+
+description: TEXT - Deskripsi lengkap produk.
+
+price: DECIMAL(10, 2) - Harga produk.
+
+stock: INT - Jumlah stok produk yang tersedia.
+
+sold_quantity: INT (Default 0) - Jumlah produk yang sudah terjual.
+
+average_rating: DECIMAL(2, 1) (Default 0.0) - Rata-rata rating produk.
+
+total_reviews: INT (Default 0) - Jumlah total ulasan/komentar.
+
+main_image: VARCHAR(255) - Path atau URL gambar utama produk.
+
+created_at: TIMESTAMP (Default CURRENT_TIMESTAMP) - Waktu produk ditambahkan.
+
+updated_at: TIMESTAMP (Default CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) - Waktu terakhir produk diperbarui.
+
+2. Tabel product_images (Galeri Gambar Produk)
+Untuk menampung banyak gambar detail produk:
+
+image_id: INT (Primary Key, Auto Increment)
+
+product_id: INT (Foreign Key ke products.product_id) - Menghubungkan gambar ke produk.
+
+image_path: VARCHAR(255) - Path atau URL gambar detail.
+
+alt_text: VARCHAR(255) - Teks alternatif untuk gambar (penting untuk SEO dan aksesibilitas).
+
+3. Tabel product_variants (Variasi Produk: Warna & Ukuran)
+Ini lebih baik daripada menempatkan colors_product dan size_product langsung di tabel products karena satu produk bisa punya banyak variasi.
+
+variant_id: INT (Primary Key, Auto Increment)
+
+product_id: INT (Foreign Key ke products.product_id)
+
+color: VARCHAR(50) (Nullable jika tidak semua produk punya variasi warna)
+
+size: VARCHAR(50) (Nullable jika tidak semua produk punya variasi ukuran, contoh: S, M, L, XL, ALL SIZE)
+
+variant_stock: INT - Stok spesifik untuk varian ini.
+
+4. Tabel product_categories (Kategori Produk)
+Dari category_product Anda, kita akan menyederhanakannya dan menjadikannya tabel yang berdiri sendiri untuk relasi yang lebih baik.
+
+category_id: INT (Primary Key, Auto Increment)
+
+category_name: VARCHAR(100) (Unique) - Nama kategori (contoh: "JKT48 Official T-Shirts", "Photobook").
+
+slug: VARCHAR(100) (Unique) - Versi "URL-friendly" dari nama kategori (misal: "jkt48-official-tshirts").
+
+Daftar kategori yang Anda berikan akan menjadi data awal di tabel ini:
+
+JKT48 Official T-Shirts
+
+Birthday T-Shirts
+
+JKT48 Official Birthday T-Shirts
+
+Photobook
+
+JKT48 Official Photobook Stationery
+
+Accessories
+
+JKT48 Accessories
+
+5. Tabel product_news (Produk Terbaru/Sorotan)
+Ini adalah perbaikan dari product_terbaru Anda, untuk menyimpan produk yang ingin disorot.
+
+news_id: INT (Primary Key, Auto Increment) - Dari id_news_product.
+
+product_id: INT (Foreign Key ke products.product_id) - Produk yang sedang disorot.
+
+image_highlight: VARCHAR(255) - Path atau URL gambar sorotan (dari img).
+
+highlight_link: VARCHAR(255) - Link untuk sorotan ini (dari link).
+
+alt_text: VARCHAR(255) - Teks alternatif untuk gambar sorotan (dari alt).
+
+display_order: INT (Opsional) - Urutan tampil di halaman.
+
+is_active: BOOLEAN (Default TRUE) - Untuk mengaktifkan/menonaktifkan sorotan.
+
+6. Tabel users (Pengguna: Admin & Konsumen)
+Untuk menangani login dan registrasi.
+
+user_id: INT (Primary Key, Auto Increment)
+
+full_name: VARCHAR(255)
+
+email: VARCHAR(255) (Unique)
+
+password_hash: VARCHAR(255) (Untuk menyimpan password yang di-hash)
+
+phone_number: VARCHAR(20) (Nullable)
+
+address: TEXT (Nullable)
+
+city: VARCHAR(100) (Nullable)
+
+postal_code: VARCHAR(10) (Nullable)
+
+role: ENUM('admin', 'customer') - Untuk membedakan hak akses.
+
+created_at: TIMESTAMP
+
+updated_at: TIMESTAMP
+
+7. Tabel orders (Pesanan)
+order_id: INT (Primary Key, Auto Increment)
+
+user_id: INT (Foreign Key ke users.user_id)
+
+order_date: TIMESTAMP (Default CURRENT_TIMESTAMP)
+
+total_amount: DECIMAL(10, 2)
+
+order_status: ENUM('pending_payment', 'processing', 'shipped', 'delivered', 'completed', 'cancelled')
+
+payment_method: VARCHAR(50)
+
+shipping_address: TEXT (Bisa ambil dari users atau diisi saat checkout)
+
+shipping_city: VARCHAR(100)
+
+shipping_postal_code: VARCHAR(10)
+
+tracking_number: VARCHAR(100) (Nomor resi pengiriman)
+
+notes: TEXT (Opsional, catatan dari konsumen)
+
+8. Tabel order_items (Detail Item Pesanan)
+order_item_id: INT (Primary Key, Auto Increment)
+
+order_id: INT (Foreign Key ke orders.order_id)
+
+product_id: INT (Foreign Key ke products.product_id)
+
+variant_id: INT (Foreign Key ke product_variants.variant_id, Nullable) - Jika produk memiliki varian.
+
+quantity: INT
+
+price_at_purchase: DECIMAL(10, 2) - Harga produk saat dipesan (untuk mencegah masalah jika harga berubah).
+
+9. Tabel cart (Keranjang Belanja)
+Untuk menyimpan item di keranjang belanja sebelum checkout.
+
+cart_id: INT (Primary Key, Auto Increment)
+
+user_id: INT (Foreign Key ke users.user_id, Unique) - Setiap user hanya punya satu keranjang.
+
+created_at: TIMESTAMP
+
+updated_at: TIMESTAMP
+
+10. Tabel cart_items (Item dalam Keranjang)
+cart_item_id: INT (Primary Key, Auto Increment)
+
+cart_id: INT (Foreign Key ke cart.cart_id)
+
+product_id: INT (Foreign Key ke products.product_id)
+
+variant_id: INT (Foreign Key ke product_variants.variant_id, Nullable)
+
+quantity: INT
+
+11. Tabel reviews (Ulasan Produk)
+Untuk fitur komentar/ulasan.
+
+review_id: INT (Primary Key, Auto Increment)
+
+product_id: INT (Foreign Key ke products.product_id)
+
+user_id: INT (Foreign Key ke users.user_id)
+
+rating: TINYINT (1-5)
+
+comment: TEXT (Nullable)
+
+review_date: TIMESTAMP (Default CURRENT_TIMESTAMP)
+
+12. Tabel transactions (Log Pembayaran)
+Untuk mencatat setiap transaksi pembayaran.
+
+transaction_id: INT (Primary Key, Auto Increment)
+
+order_id: INT (Foreign Key ke orders.order_id)
+
+payment_gateway_ref: VARCHAR(255) (ID transaksi dari payment gateway)
+
+amount: DECIMAL(10, 2)
+
+currency: VARCHAR(5) (Misal: IDR)
+
+transaction_status: ENUM('pending', 'success', 'failed', 'refunded')
+
+transaction_date: TIMESTAMP (Default CURRENT_TIMESTAMP)
+
+13. Tabel complaints (Komplain Konsumen)
+Untuk fitur layanan purna jual (aftersales service).
+
+complaint_id: INT (Primary Key, Auto Increment)
+
+user_id: INT (Foreign Key ke users.user_id)
+
+order_id: INT (Foreign Key ke orders.order_id, Nullable jika komplain bukan terkait order)
+
+subject: VARCHAR(255) (Subjek komplain)
+
+description: TEXT (Detail komplain)
+
+complaint_status: ENUM('open', 'in_progress', 'resolved', 'closed')
+
+created_at: TIMESTAMP
+
+updated_at: TIMESTAMP
+
+14. Tabel messages (Live Chat)
+Untuk fitur live chat antara admin dan konsumen.
+
+message_id: INT (Primary Key, Auto Increment)
+
+sender_id: INT (Foreign Key ke users.user_id)
+
+receiver_id: INT (Foreign Key ke users.user_id)
+
+message_text: TEXT
+
+sent_at: TIMESTAMP (Default CURRENT_TIMESTAMP)
+
+is_read: BOOLEAN (Default FALSE) - Untuk menandai pesan sudah dibaca.
+
+Fitur Tambahan (Alur Pengguna)
+1. Fitur untuk Admin:
+Manajemen Produk Komprehensif:
+
+Menambahkan/Mengedit Produk: Form input yang memungkinkan admin mengisi product_name, description, price, stock, memilih category_id (dari dropdown kategori yang ada), mengunggah main_image, dan menambahkan banyak product_images.
+
+Manajemen Varian: Admin dapat menambahkan variasi color dan size beserta variant_stock untuk setiap produk.
+
+Manajemen Kategori: Admin dapat menambah, mengedit, atau menghapus kategori produk.
+
+Manajemen Produk Terbaru/Sorotan: Admin dapat memilih produk dari daftar produk yang ada untuk ditampilkan di bagian "Produk Terbaru" atau "Sorotan" dengan gambar dan link khusus.
+
+Notifikasi Pembayaran: Sistem akan mengirim notifikasi (dashboard admin, email, atau push notification) ke admin ketika ada transaksi pembayaran yang berhasil masuk ke tabel transactions dengan transaction_status = 'success'.
+
+Manajemen Pesanan:
+
+Mengubah Status Pesanan: Admin dapat melihat daftar pesanan dan mengubah order_status dari pending_payment menjadi processing (setelah pembayaran dikonfirmasi), lalu ke shipped, dan delivered.
+
+Mengisi Nomor Resi: Saat mengubah status ke shipped, admin wajib mengisi tracking_number.
+
+Layanan Purna Jual & Komplain:
+
+Melihat dan Menanggapi Komplain: Admin dapat melihat daftar komplain dari tabel complaints, membaca detailnya, dan menambahkan respons/status ke komplain tersebut.
+
+Konfirmasi Penerimaan: Ketika konsumen melakukan konfirmasi penerimaan, admin akan mendapatkan notifikasi dan order_status dapat diubah menjadi completed.
+
+Live Chat dengan Konsumen: Panel chat di dashboard admin yang terhubung langsung dengan fitur live chat konsumen.
+
+2. Fitur untuk Konsumen:
+Melihat Katalog Produk:
+
+Tampilan Publik: Seluruh katalog produk dapat dilihat tanpa perlu login.
+
+Detail Produk: Halaman detail produk menampilkan product_name, description, price, available_stock (dari varian), main_image, product_images (galeri), average_rating, dan reviews.
+
+Melihat Produk Berdasarkan Kategori: Navigasi atau filter untuk melihat produk berdasarkan category_name dari tabel product_categories.
+
+Registrasi dan Login: Formulir registrasi untuk membuat akun users dengan role = 'customer' dan fitur login.
+
+Keranjang Belanja:
+
+Memasukkan Produk ke Keranjang: Pengguna dapat menambahkan produk (dengan varian warna/ukuran jika ada) ke cart dan cart_items. Jumlah stok akan diperiksa saat menambahkan ke keranjang dan saat checkout.
+
+Mengelola Keranjang: Melihat isi keranjang, mengubah kuantitas, atau menghapus item.
+
+Proses Pembayaran:
+
+Integrasi dengan Payment Gateway (misalnya Midtrans, Xendit, atau sejenisnya di Indonesia) untuk memproses pembayaran.
+
+Setelah pembayaran sukses, data akan dicatat di tabel transactions dan order_status di tabel orders akan diubah.
+
+Pengisian Detail Pengiriman:
+
+Melalui halaman profil atau saat checkout, konsumen dapat mengisi/mengedit address, city, postal_code, dan phone_number yang akan digunakan untuk pengiriman.
+
+Pelacakan Pengiriman: Konsumen dapat melihat order_status dan tracking_number di halaman riwayat pesanan mereka. Link ke situs pelacak kurir juga bisa disediakan.
+
+Layanan Purna Jual:
+
+Konfirmasi Penerimaan Pesanan: Tombol di halaman detail pesanan untuk mengonfirmasi bahwa pesanan sudah diterima, yang akan mengubah order_status menjadi completed.
+
+Mengajukan Komplain: Formulir pengajuan komplain yang akan disimpan di tabel complaints, dengan kemungkinan melampirkan order_id jika relevan.
+
+Live Chat dengan Admin: Fitur live chat untuk berkomunikasi langsung dengan admin terkait pertanyaan atau masalah.
+
+Ulasan Produk: Setelah pesanan berstatus completed atau delivered, konsumen dapat memberikan rating dan comment untuk produk yang dibeli.
