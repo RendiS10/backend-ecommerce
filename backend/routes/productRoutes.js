@@ -6,6 +6,7 @@ const { isAuthenticated, isAdmin } = require("../middlewares/auth");
 const upload = require("../middlewares/upload");
 
 router.get("/", productController.getAllProducts);
+router.get("/:id", productController.getProductById);
 router.post(
   "/",
   isAuthenticated,
