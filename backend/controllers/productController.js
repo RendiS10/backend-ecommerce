@@ -7,7 +7,22 @@ const {
 
 exports.getAllProducts = async (req, res) => {
   try {
+    const { category } = req.query;
+    const where = {};
+    if (category) {
+      // Cari kategori berdasarkan nama (case-insensitive)
+      const cat = await ProductCategory.findOne({
+        where: { category_name: category },
+      });
+      if (cat) {
+        where.category_id = cat.category_id;
+      } else {
+        // Jika kategori tidak ditemukan, return array kosong
+        return res.json([]);
+      }
+    }
     const products = await Product.findAll({
+      where,
       include: [ProductCategory, ProductImage, ProductVariant],
     });
     res.json(products);

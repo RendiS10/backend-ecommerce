@@ -9,6 +9,7 @@ import Orders from "./pages/Orders.jsx";
 import Transactions from "./pages/Transactions.jsx";
 import Complaints from "./pages/Complaints.jsx";
 import Chat from "./pages/Chat.jsx";
+import NewsProduct from "./pages/NewsProduct.jsx";
 
 const router = createBrowserRouter([
   {
@@ -42,6 +43,10 @@ const router = createBrowserRouter([
   {
     path: "/chat",
     element: <Chat />,
+  },
+  {
+    path: "/news-product",
+    element: <NewsProduct />,
   },
 ]);
 

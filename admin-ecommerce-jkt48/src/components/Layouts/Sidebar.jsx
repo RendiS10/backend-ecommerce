@@ -5,6 +5,7 @@ const menu = [
   { label: "Dashboard", path: "/dashboard" },
   { label: "Produk", path: "/products" },
   { label: "Kategori", path: "/categories" },
+  { label: "News Product", path: "/news-product" },
   { label: "Pesanan", path: "/orders" },
   { label: "Transaksi", path: "/transactions" },
   { label: "Komplain", path: "/complaints" },
