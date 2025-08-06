@@ -10,6 +10,7 @@ import Transactions from "./pages/Transactions.jsx";
 import Complaints from "./pages/Complaints.jsx";
 import Chat from "./pages/Chat.jsx";
 import NewsProduct from "./pages/NewsProduct.jsx";
+import ProductVariants from "./pages/ProductVariants.jsx";
 
 const router = createBrowserRouter([
   {
@@ -47,6 +48,10 @@ const router = createBrowserRouter([
   {
     path: "/news-product",
     element: <NewsProduct />,
+  },
+  {
+    path: "/variants",
+    element: <ProductVariants />,
   },
 ]);
 

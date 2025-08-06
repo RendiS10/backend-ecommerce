@@ -68,6 +68,9 @@ app.use("/api/transactions", transactionRoutes);
 const messageRoutes = require("./routes/messageRoutes");
 app.use("/api/messages", messageRoutes);
 
+const variantsRoutes = require("./routes/variantsRoutes");
+app.use("/api/variants", variantsRoutes);
+
 sequelize.sync().then(() => {
   app.listen(5000, () => console.log("Server running on port 5000"));
 });
