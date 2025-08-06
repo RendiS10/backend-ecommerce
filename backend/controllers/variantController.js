@@ -1,4 +1,14 @@
-const { ProductVariant } = require("../models");
+const { ProductVariant, Product } = require("../models");
+
+async function updateProductStock(product_id) {
+  // Hitung total stok dari semua varian untuk produk ini
+  const variants = await ProductVariant.findAll({ where: { product_id } });
+  const totalStock = variants.reduce(
+    (sum, v) => sum + (v.variant_stock || 0),
+    0
+  );
+  await Product.update({ stock: totalStock }, { where: { product_id } });
+}
 
 exports.getAllVariants = async (req, res) => {
   try {
@@ -18,6 +28,7 @@ exports.createVariant = async (req, res) => {
       size,
       variant_stock,
     });
+    await updateProductStock(product_id);
     res.status(201).json(variant);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -35,6 +46,7 @@ exports.updateVariant = async (req, res) => {
     variant.size = size;
     variant.variant_stock = variant_stock;
     await variant.save();
+    await updateProductStock(product_id);
     res.json(variant);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -46,7 +58,9 @@ exports.deleteVariant = async (req, res) => {
     const { id } = req.params;
     const variant = await ProductVariant.findByPk(id);
     if (!variant) return res.status(404).json({ message: "Variant not found" });
+    const product_id = variant.product_id;
     await variant.destroy();
+    await updateProductStock(product_id);
     res.json({ message: "Variant deleted" });
   } catch (err) {
     res.status(500).json({ message: err.message });
