@@ -1,4 +1,4 @@
-// Contoh relasi antar model
+// Relasi antar model
 const Product = require("./product");
 const ProductCategory = require("./product_category");
 const ProductImage = require("./product_image");

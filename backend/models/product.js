@@ -12,7 +12,7 @@ const Product = sequelize.define(
     category_id: { type: DataTypes.INTEGER, allowNull: false },
     product_name: { type: DataTypes.STRING(255), allowNull: false },
     description: { type: DataTypes.TEXT },
-    price: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
+    price: { type: DataTypes.INTEGER, allowNull: false },
     stock: { type: DataTypes.INTEGER, allowNull: false },
     sold_quantity: { type: DataTypes.INTEGER, defaultValue: 0 },
     average_rating: { type: DataTypes.DECIMAL(2, 1), defaultValue: 0.0 },

@@ -1,32 +1,50 @@
+// =============================================================================
+// PRODUCT CONTROLLER - Controller untuk mengelola data produk JKT48 merchandise
+// =============================================================================
+
+// Mengimpor semua model yang dibutuhkan untuk operasi produk
 const {
-  Product,
-  ProductCategory,
-  ProductImage,
-  ProductVariant,
+  Product, // Model utama produk
+  ProductCategory, // Model kategori produk (photocard, album, dll)
+  ProductImage, // Model gambar-gambar produk
+  ProductVariant, // Model varian produk (size, color, dll)
 } = require("../models");
 
+// =============================================================================
+// GET ALL PRODUCTS - Mengambil semua produk dengan optional filter kategori
+// =============================================================================
 exports.getAllProducts = async (req, res) => {
   try {
+    // Ambil parameter query "category" dari URL (?category=photocard)
     const { category } = req.query;
-    const where = {};
+    const where = {}; // Object untuk filter query
+
+    // Jika ada filter kategori, cari kategori tersebut di database
     if (category) {
       // Cari kategori berdasarkan nama (case-insensitive)
       const cat = await ProductCategory.findOne({
         where: { category_name: category },
       });
+
       if (cat) {
+        // Jika kategori ditemukan, filter produk berdasarkan category_id
         where.category_id = cat.category_id;
       } else {
         // Jika kategori tidak ditemukan, return array kosong
         return res.json([]);
       }
     }
+
+    // Ambil semua produk dengan relasi (join) ke tabel terkait
     const products = await Product.findAll({
-      where,
-      include: [ProductCategory, ProductImage, ProductVariant],
+      where, // Filter berdasarkan kategori (jika ada)
+      include: [ProductCategory, ProductImage, ProductVariant], // Join dengan tabel relasi
     });
+
+    // Kirim response dengan data produk
     res.json(products);
   } catch (err) {
+    // Handle error jika terjadi kesalahan database
     res.status(500).json({ message: err.message });
   }
 };

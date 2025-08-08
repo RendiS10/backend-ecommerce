@@ -1,33 +1,55 @@
+// =============================================================================
+// MESSAGE CONTROLLER - Controller untuk mengelola live chat/pesan
+// =============================================================================
+
+// Mengimpor model yang dibutuhkan untuk operasi pesan
 const { Message, User } = require("../models");
 
+// =============================================================================
+// GET MESSAGES - Mengambil semua pesan yang diterima user
+// =============================================================================
 exports.getMessages = async (req, res) => {
   try {
+    // Ambil user_id dari token JWT (user yang sedang login)
     const user_id = req.user.user_id;
+
+    // Ambil semua pesan yang diterima user dengan info pengirim
     const messages = await Message.findAll({
-      where: { receiver_id: user_id },
+      where: { receiver_id: user_id }, // Filter pesan yang diterima user
       include: [
         {
           model: User,
-          as: "Sender",
-          attributes: ["user_id", "full_name", "role"],
+          as: "Sender", // Alias untuk pengirim pesan
+          attributes: ["user_id", "full_name", "role"], // Hanya ambil field tertentu
         },
       ],
-      order: [["sent_at", "ASC"]],
+      order: [["sent_at", "ASC"]], // Urutkan berdasarkan waktu kirim (lama ke baru)
     });
+
+    // Kirim response dengan daftar pesan
     res.json(messages);
   } catch (err) {
+    // Handle error database
     res.status(500).json({ message: err.message });
   }
 };
 
+// =============================================================================
+// SEND MESSAGE - Mengirim pesan baru (Customer <-> Admin)
+// =============================================================================
 exports.sendMessage = async (req, res) => {
   try {
+    // Ambil sender_id dari token JWT (user yang mengirim)
     const sender_id = req.user.user_id;
+
+    // Ambil data pesan dari request body
     const { receiver_id, message_text } = req.body;
+
+    // Buat pesan baru di database
     const message = await Message.create({
-      sender_id,
-      receiver_id,
-      message_text,
+      sender_id, // ID pengirim pesan
+      receiver_id, // ID penerima pesan
+      message_text, // Isi pesan
     });
     res.status(201).json(message);
   } catch (err) {

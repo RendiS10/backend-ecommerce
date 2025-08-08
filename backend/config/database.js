@@ -1,15 +1,16 @@
 // Konfigurasi koneksi database menggunakan Sequelize
 const { Sequelize } = require("sequelize");
+// Menggunakan dotenv untuk mengelola variabel lingkungan
 require("dotenv").config();
 
 const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASS,
+  process.env.DB_NAME, // Nama database
+  process.env.DB_USER, // Username database
+  process.env.DB_PASS, // Password database
   {
-    host: process.env.DB_HOST,
-    dialect: "mysql",
-    logging: false,
+    host: process.env.DB_HOST, // Host database
+    dialect: "mysql", // Jenis database yang digunakan
+    logging: false, // Menonaktifkan log SQL queries
   }
 );
 
