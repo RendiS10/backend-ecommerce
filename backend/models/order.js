@@ -15,6 +15,8 @@ const Order = sequelize.define(
     order_status: {
       type: DataTypes.ENUM(
         "pending_payment",
+        "payment_uploaded",
+        "confirmed",
         "processing",
         "shipped",
         "delivered",
@@ -24,6 +26,7 @@ const Order = sequelize.define(
       allowNull: false,
     },
     payment_method: { type: DataTypes.STRING(50) },
+    payment_proof: { type: DataTypes.STRING(255) }, // File path untuk bukti pembayaran
     shipping_address: { type: DataTypes.TEXT },
     shipping_city: { type: DataTypes.STRING(100) },
     shipping_postal_code: { type: DataTypes.STRING(10) },
@@ -32,7 +35,9 @@ const Order = sequelize.define(
   },
   {
     tableName: "orders",
-    timestamps: false,
+    timestamps: true,
+    createdAt: "created_at",
+    updatedAt: "updated_at",
   }
 );
 

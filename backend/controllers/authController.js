@@ -80,3 +80,64 @@ exports.login = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// =============================================================================
+// GET USER PROFILE - Mengambil data profile user yang sedang login
+// =============================================================================
+exports.getUserProfile = async (req, res) => {
+  try {
+    // Ambil user_id dari token JWT yang sudah didecode di middleware auth
+    const user_id = req.user.user_id;
+
+    // Cari user di database berdasarkan user_id
+    const user = await User.findByPk(user_id, {
+      attributes: { exclude: ["password_hash"] }, // Jangan kirim password hash
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Kirim data user profile
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// =============================================================================
+// UPDATE USER PROFILE - Memperbarui data profile user
+// =============================================================================
+exports.updateUserProfile = async (req, res) => {
+  try {
+    // Ambil user_id dari token JWT
+    const user_id = req.user.user_id;
+
+    // Ambil data yang akan diupdate dari request body
+    const { full_name, phone_number, address, city, postal_code } = req.body;
+
+    // Cari user di database
+    const user = await User.findByPk(user_id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Update data user (hanya field yang diizinkan)
+    await user.update({
+      full_name: full_name || user.full_name,
+      phone_number: phone_number || user.phone_number,
+      address: address || user.address,
+      city: city || user.city,
+      postal_code: postal_code || user.postal_code,
+    });
+
+    // Kirim response dengan data user yang sudah diupdate (tanpa password)
+    const updatedUser = await User.findByPk(user_id, {
+      attributes: { exclude: ["password_hash"] },
+    });
+
+    res.json(updatedUser);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
