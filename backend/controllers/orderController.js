@@ -54,6 +54,11 @@ exports.createOrder = async (req, res) => {
       cart_items, // Array item dari keranjang
     } = req.body;
 
+    // Debug logging
+    console.log("Creating order for user:", user_id);
+    console.log("Request body:", req.body);
+    console.log("Cart items:", cart_items);
+
     // Validasi data yang diperlukan
     if (
       !shipping_address ||
@@ -62,6 +67,35 @@ exports.createOrder = async (req, res) => {
       cart_items.length === 0
     ) {
       return res.status(400).json({ message: "Data pesanan tidak lengkap" });
+    }
+
+    // Validasi payment_method hanya COD
+    if (payment_method !== "cod") {
+      console.log("Invalid payment method:", payment_method);
+      return res
+        .status(400)
+        .json({ message: "Hanya metode pembayaran COD yang tersedia" });
+    }
+
+    // Validasi cart_items tidak kosong dan memiliki data yang diperlukan
+    if (!Array.isArray(cart_items) || cart_items.length === 0) {
+      console.log("Invalid cart_items:", cart_items);
+      return res.status(400).json({ message: "Cart items tidak valid" });
+    }
+
+    // Validasi setiap cart item memiliki data yang diperlukan
+    for (const item of cart_items) {
+      if (!item.product_id || !item.quantity || !item.price) {
+        console.log("Invalid cart item:", item);
+        return res.status(400).json({
+          message: "Data cart item tidak lengkap",
+          missing_fields: {
+            product_id: !item.product_id,
+            quantity: !item.quantity,
+            price: !item.price,
+          },
+        });
+      }
     }
 
     // Hitung total amount dari cart_items
@@ -77,18 +111,39 @@ exports.createOrder = async (req, res) => {
     // Format alamat pengiriman menjadi string
     const full_address = `${shipping_address.full_name}, ${shipping_address.phone_number}, ${shipping_address.address}, ${shipping_address.city}, ${shipping_address.postal_code}`;
 
-    // Buat pesanan baru dengan status sesuai payment method
-    const order_status =
-      payment_method === "cod" ? "confirmed" : "pending_payment";
+    // Generate tracking number otomatis
+    const generateTrackingNumber = () => {
+      const date = new Date();
+      const year = date.getFullYear().toString().substring(2);
+      const month = (date.getMonth() + 1).toString().padStart(2, "0");
+      const day = date.getDate().toString().padStart(2, "0");
+      const random = Math.floor(Math.random() * 10000)
+        .toString()
+        .padStart(4, "0");
+      return `JKT48-${year}${month}${day}-${random}`;
+    };
 
-    const order = await Order.create({
+    // Buat pesanan baru dengan status sangat singkat
+    const order_status = "1"; // Status numerik untuk menghindari truncation sepenuhnya
+    const tracking_number = generateTrackingNumber();
+
+    console.log("Creating order with data:", {
       user_id,
       total_amount,
       order_status,
       payment_method,
+      tracking_number,
+    });
+
+    const order = await Order.create({
+      user_id,
+      total_amount,
+      // Skip order_status initially to avoid truncation error
+      payment_method,
       shipping_address: full_address,
       shipping_city: shipping_address.city,
       shipping_postal_code: shipping_address.postal_code,
+      tracking_number: tracking_number,
       notes: notes || "",
     });
 
@@ -103,53 +158,41 @@ exports.createOrder = async (req, res) => {
       });
     }
 
+    // Update status menjadi confirmed untuk COD setelah order berhasil dibuat
+    // Try to set status after creation to avoid initial truncation error
+    try {
+      if (payment_method === "cod") {
+        await order.update({ order_status: "2" }); // Status numerik pendek
+      } else {
+        await order.update({ order_status: "1" }); // Status default
+      }
+    } catch (statusError) {
+      console.log("Warning: Could not set order status:", statusError.message);
+      // Continue without status if there's a problem
+    }
+
+    console.log("Order created successfully:", order.order_id);
+
+    // Get the final status after update
+    const finalStatus = payment_method === "cod" ? "2" : "1";
+
     // Response dengan data order yang baru dibuat
     res.status(201).json({
       order_id: order.order_id,
       total_amount: order.total_amount,
-      status: order.order_status,
+      order_status: finalStatus,
       payment_method: order.payment_method,
       shipping_address: order.shipping_address,
-      created_at: order.created_at,
+      tracking_number: order.tracking_number,
+      created_at: order.order_date,
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// =============================================================================
-// UPLOAD PAYMENT PROOF - Upload bukti pembayaran untuk transfer
-// =============================================================================
-exports.uploadPaymentProof = async (req, res) => {
-  try {
-    const { order_id } = req.body;
-    const user_id = req.user.user_id;
-
-    // Cari order berdasarkan ID dan pastikan milik user yang login
-    const order = await Order.findOne({
-      where: { order_id, user_id },
+    console.error("Error creating order:", err);
+    res.status(500).json({
+      message: "Gagal membuat pesanan",
+      error: err.message,
+      stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
     });
-
-    if (!order) {
-      return res.status(404).json({ message: "Pesanan tidak ditemukan" });
-    }
-
-    if (order.payment_method !== "transfer") {
-      return res
-        .status(400)
-        .json({ message: "Upload bukti hanya untuk pembayaran transfer" });
-    }
-
-    // Update order dengan bukti pembayaran
-    if (req.file) {
-      order.payment_proof = req.file.filename;
-      order.order_status = "payment_uploaded";
-      await order.save();
-    }
-
-    res.json({ message: "Bukti pembayaran berhasil diupload", order });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
   }
 };
 

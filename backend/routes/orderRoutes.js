@@ -14,22 +14,14 @@ router.post(
   isAuthenticated,
   [
     body("shipping_address").isObject(),
-    body("payment_method").isIn(["transfer", "cod"]),
+    body("payment_method").isIn(["cod"]),
     body("cart_items").isArray({ min: 1 }),
   ],
   orderController.createOrder
 );
 
-// UPLOAD payment proof for transfer orders
-router.post(
-  "/payment-proof",
-  isAuthenticated,
-  upload.single("payment_proof"),
-  orderController.uploadPaymentProof
-);
-
 // CONFIRM COD order
-router.put(
+router.patch(
   "/:order_id/confirm-cod",
   isAuthenticated,
   orderController.confirmCODOrder

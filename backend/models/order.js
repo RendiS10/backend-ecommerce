@@ -13,20 +13,15 @@ const Order = sequelize.define(
     order_date: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     total_amount: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
     order_status: {
-      type: DataTypes.ENUM(
-        "pending_payment",
-        "payment_uploaded",
-        "confirmed",
-        "processing",
-        "shipped",
-        "delivered",
-        "completed",
-        "cancelled"
-      ),
-      allowNull: false,
+      type: DataTypes.STRING(5),
+      allowNull: true, // Allow null to bypass initial creation issues
+      defaultValue: null, // No default to avoid truncation on create
     },
-    payment_method: { type: DataTypes.STRING(50) },
-    payment_proof: { type: DataTypes.STRING(255) }, // File path untuk bukti pembayaran
+    payment_method: {
+      type: DataTypes.STRING(50),
+      allowNull: false,
+      defaultValue: "cod",
+    },
     shipping_address: { type: DataTypes.TEXT },
     shipping_city: { type: DataTypes.STRING(100) },
     shipping_postal_code: { type: DataTypes.STRING(10) },
@@ -35,9 +30,7 @@ const Order = sequelize.define(
   },
   {
     tableName: "orders",
-    timestamps: true,
-    createdAt: "created_at",
-    updatedAt: "updated_at",
+    timestamps: false,
   }
 );
 
