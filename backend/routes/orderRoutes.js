@@ -9,7 +9,7 @@ const upload = require("../middlewares/upload");
 router.get("/", isAuthenticated, orderController.getUserOrders);
 
 // GET all orders (admin only)
-router.get("/all", isAdmin, orderController.getAllOrders);
+router.get("/all", isAuthenticated, isAdmin, orderController.getAllOrders);
 
 // CREATE new order
 router.post(
@@ -36,6 +36,7 @@ router.patch("/:order_id/cancel", isAuthenticated, orderController.cancelOrder);
 // UPDATE order status (admin only)
 router.patch(
   "/:order_id/status",
+  isAuthenticated,
   isAdmin,
   [
     body("order_status").isIn([

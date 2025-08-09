@@ -13,6 +13,35 @@ function Orders() {
   const fetchOrders = async () => {
     try {
       const token = localStorage.getItem("token");
+
+      // Check if token exists
+      if (!token) {
+        console.log("No token found, redirecting to login...");
+        window.location.href = "/login";
+        return;
+      }
+
+      // Debug: Check token and parse it
+      console.log("Token:", token ? "Available" : "Not found");
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        console.log("Token payload:", payload);
+        console.log("User role:", payload.role);
+
+        // Check if user is admin
+        if (payload.role !== "admin") {
+          console.log("User is not admin, redirecting to login...");
+          localStorage.removeItem("token");
+          window.location.href = "/login";
+          return;
+        }
+      } catch (e) {
+        console.log("Cannot parse token payload, token may be invalid");
+        localStorage.removeItem("token");
+        window.location.href = "/login";
+        return;
+      }
+
       const response = await fetch("http://localhost:5000/api/orders/all", {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -20,7 +49,19 @@ function Orders() {
         },
       });
 
+      console.log("Response status:", response.status);
+      console.log("Response ok:", response.ok);
+
+      if (response.status === 401 || response.status === 403) {
+        console.log("Token expired or unauthorized, redirecting to login...");
+        localStorage.removeItem("token");
+        window.location.href = "/login";
+        return;
+      }
+
       if (!response.ok) {
+        const errorText = await response.text();
+        console.log("Error response:", errorText);
         throw new Error("Gagal mengambil data pesanan");
       }
 
@@ -147,7 +188,7 @@ function Orders() {
                   </h3>
                   <p className="text-sm text-gray-600">
                     Customer:{" "}
-                    {order.User?.name || order.User?.email || "Unknown"}
+                    {order.User?.full_name || order.User?.email || "Unknown"}
                   </p>
                   <p className="text-sm text-gray-600">
                     Tanggal:{" "}

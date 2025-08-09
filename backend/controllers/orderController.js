@@ -52,7 +52,7 @@ exports.getAllOrders = async (req, res) => {
         },
         {
           model: User,
-          attributes: ["user_id", "name", "email"], // Hanya ambil field yang diperlukan
+          attributes: ["user_id", "full_name", "email"], // Hanya ambil field yang diperlukan
         },
       ],
       order: [["order_date", "DESC"]], // Urutkan berdasarkan tanggal terbaru
