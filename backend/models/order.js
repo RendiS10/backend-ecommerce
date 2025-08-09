@@ -13,9 +13,9 @@ const Order = sequelize.define(
     order_date: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     total_amount: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
     order_status: {
-      type: DataTypes.STRING(5),
-      allowNull: true, // Allow null to bypass initial creation issues
-      defaultValue: null, // No default to avoid truncation on create
+      type: DataTypes.STRING(20), // Extended to support legacy "pending_payment" (15 chars)
+      allowNull: false,
+      defaultValue: "1", // New orders use "1", but support legacy values
     },
     payment_method: {
       type: DataTypes.STRING(50),
@@ -33,5 +33,16 @@ const Order = sequelize.define(
     timestamps: false,
   }
 );
+
+// Force sync the model schema on startup (only in development)
+if (process.env.NODE_ENV !== "production") {
+  Order.sync({ alter: true })
+    .then(() => {
+      console.log("✅ Order model schema synced successfully");
+    })
+    .catch((err) => {
+      console.error("❌ Error syncing Order model:", err.message);
+    });
+}
 
 module.exports = Order;

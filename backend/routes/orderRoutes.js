@@ -27,6 +27,9 @@ router.patch(
   orderController.confirmCODOrder
 );
 
+// CANCEL order (customer)
+router.patch("/:order_id/cancel", isAuthenticated, orderController.cancelOrder);
+
 // UPDATE order status (admin only)
 router.put(
   "/:order_id/status",

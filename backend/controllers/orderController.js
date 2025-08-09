@@ -138,7 +138,7 @@ exports.createOrder = async (req, res) => {
     const order = await Order.create({
       user_id,
       total_amount,
-      // Skip order_status initially to avoid truncation error
+      order_status: "1", // Provide initial status to satisfy NOT NULL constraint
       payment_method,
       shipping_address: full_address,
       shipping_city: shipping_address.city,
@@ -158,26 +158,17 @@ exports.createOrder = async (req, res) => {
       });
     }
 
-    // Update status menjadi confirmed untuk COD setelah order berhasil dibuat
-    // Try to set status after creation to avoid initial truncation error
-    try {
-      if (payment_method === "cod") {
-        await order.update({ order_status: "2" }); // Status numerik pendek
-      } else {
-        await order.update({ order_status: "1" }); // Status default
-      }
-    } catch (statusError) {
-      console.log("Warning: Could not set order status:", statusError.message);
-      // Continue without status if there's a problem
-    }
+    // ❌ HAPUS AUTO-UPDATE STATUS - Biarkan pesanan tetap status "1" menunggu konfirmasi
+    // Semua pesanan (termasuk COD) harus menunggu konfirmasi admin dulu
 
     console.log("Order created successfully:", order.order_id);
 
-    // Get the final status after update
-    const finalStatus = payment_method === "cod" ? "2" : "1";
+    // Status tetap "1" untuk semua pesanan (menunggu konfirmasi)
+    const finalStatus = "1";
 
     // Response dengan data order yang baru dibuat
     res.status(201).json({
+      message: "Pesanan berhasil dibuat, menunggu konfirmasi admin",
       order_id: order.order_id,
       total_amount: order.total_amount,
       order_status: finalStatus,
@@ -240,6 +231,63 @@ exports.updateOrderStatus = async (req, res) => {
     await order.save();
     res.json(order);
   } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// =============================================================================
+// CANCEL ORDER - Membatalkan pesanan customer
+// =============================================================================
+exports.cancelOrder = async (req, res) => {
+  try {
+    const { order_id } = req.params;
+    const user_id = req.user.user_id;
+
+    // Cari order berdasarkan ID dan pastikan milik user yang login
+    const order = await Order.findOne({
+      where: { order_id, user_id },
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: "Pesanan tidak ditemukan" });
+    }
+
+    // Validasi status pesanan - hanya bisa dibatalkan jika masih dalam status tertentu
+    const cancellableStatuses = [
+      "1",
+      "2",
+      1,
+      2, // Numeric status codes (new format)
+      "pending_payment", // Legacy status yang masih ada di database
+    ];
+    console.log(`Checking cancellation for order ${order_id}:`, {
+      current_status: order.order_status,
+      status_type: typeof order.order_status,
+      cancellable_statuses: cancellableStatuses,
+      can_cancel: cancellableStatuses.includes(order.order_status),
+    });
+
+    if (!cancellableStatuses.includes(order.order_status)) {
+      return res.status(400).json({
+        message: `Pesanan tidak dapat dibatalkan karena sudah diproses atau dikirim (Current status: ${order.order_status})`,
+      });
+    }
+
+    // Update status menjadi "9" (cancelled)
+    await order.update({ order_status: "9" });
+
+    console.log(`Order ${order_id} cancelled by user ${user_id}`);
+
+    res.json({
+      message: "Pesanan berhasil dibatalkan",
+      order: {
+        order_id: order.order_id,
+        order_status: order.order_status,
+        total_amount: order.total_amount,
+      },
+    });
+  } catch (err) {
+    console.error("Error cancelling order:", err);
     res.status(500).json({ message: err.message });
   }
 };
