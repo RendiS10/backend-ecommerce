@@ -8,6 +8,9 @@ const upload = require("../middlewares/upload");
 // GET user orders
 router.get("/", isAuthenticated, orderController.getUserOrders);
 
+// GET all orders (admin only)
+router.get("/all", isAdmin, orderController.getAllOrders);
+
 // CREATE new order
 router.post(
   "/",
@@ -31,18 +34,16 @@ router.patch(
 router.patch("/:order_id/cancel", isAuthenticated, orderController.cancelOrder);
 
 // UPDATE order status (admin only)
-router.put(
+router.patch(
   "/:order_id/status",
   isAdmin,
   [
     body("order_status").isIn([
-      "pending_payment",
-      "payment_uploaded",
-      "processing",
-      "shipped",
-      "delivered",
-      "completed",
-      "cancelled",
+      "Menunggu Konfirmasi",
+      "Diproses",
+      "Dikirim",
+      "Selesai",
+      "Dibatalkan",
     ]),
   ],
   orderController.updateOrderStatus

@@ -39,6 +39,35 @@ exports.getUserOrders = async (req, res) => {
 };
 
 // =============================================================================
+// GET ALL ORDERS - Mengambil semua pesanan untuk admin
+// =============================================================================
+exports.getAllOrders = async (req, res) => {
+  try {
+    // Cari semua pesanan dengan detail item, produk, dan user
+    const orders = await Order.findAll({
+      include: [
+        {
+          model: OrderItem,
+          include: [Product, ProductVariant], // Join untuk detail produk dan varian
+        },
+        {
+          model: User,
+          attributes: ["user_id", "name", "email"], // Hanya ambil field yang diperlukan
+        },
+      ],
+      order: [["order_date", "DESC"]], // Urutkan berdasarkan tanggal terbaru
+    });
+
+    // Kirim response dengan daftar semua pesanan
+    res.json(orders);
+  } catch (err) {
+    // Handle error database
+    console.error("Error fetching all orders:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// =============================================================================
 // CREATE ORDER - Membuat pesanan baru dari keranjang belanja
 // =============================================================================
 exports.createOrder = async (req, res) => {
@@ -123,8 +152,8 @@ exports.createOrder = async (req, res) => {
       return `JKT48-${year}${month}${day}-${random}`;
     };
 
-    // Buat pesanan baru dengan status sangat singkat
-    const order_status = "1"; // Status numerik untuk menghindari truncation sepenuhnya
+    // Buat pesanan baru dengan status default
+    const order_status = "Menunggu Konfirmasi"; // Status default untuk pesanan baru
     const tracking_number = generateTrackingNumber();
 
     console.log("Creating order with data:", {
@@ -138,7 +167,7 @@ exports.createOrder = async (req, res) => {
     const order = await Order.create({
       user_id,
       total_amount,
-      order_status: "1", // Provide initial status to satisfy NOT NULL constraint
+      order_status: "Menunggu Konfirmasi", // Status default
       payment_method,
       shipping_address: full_address,
       shipping_city: shipping_address.city,
@@ -158,13 +187,13 @@ exports.createOrder = async (req, res) => {
       });
     }
 
-    // ❌ HAPUS AUTO-UPDATE STATUS - Biarkan pesanan tetap status "1" menunggu konfirmasi
+    // ❌ HAPUS AUTO-UPDATE STATUS - Biarkan pesanan tetap status "Menunggu Konfirmasi"
     // Semua pesanan (termasuk COD) harus menunggu konfirmasi admin dulu
 
     console.log("Order created successfully:", order.order_id);
 
-    // Status tetap "1" untuk semua pesanan (menunggu konfirmasi)
-    const finalStatus = "1";
+    // Status tetap "Menunggu Konfirmasi" untuk semua pesanan
+    const finalStatus = "Menunggu Konfirmasi";
 
     // Response dengan data order yang baru dibuat
     res.status(201).json({
@@ -211,7 +240,7 @@ exports.confirmCODOrder = async (req, res) => {
     }
 
     // Update status order COD
-    order.order_status = "processing";
+    order.order_status = "Diproses";
     await order.save();
 
     res.json({ message: "Pesanan COD berhasil dikonfirmasi", order });
@@ -254,11 +283,7 @@ exports.cancelOrder = async (req, res) => {
 
     // Validasi status pesanan - hanya bisa dibatalkan jika masih dalam status tertentu
     const cancellableStatuses = [
-      "1",
-      "2",
-      1,
-      2, // Numeric status codes (new format)
-      "pending_payment", // Legacy status yang masih ada di database
+      "Menunggu Konfirmasi", // Status awal yang bisa dibatalkan
     ];
     console.log(`Checking cancellation for order ${order_id}:`, {
       current_status: order.order_status,
@@ -273,8 +298,8 @@ exports.cancelOrder = async (req, res) => {
       });
     }
 
-    // Update status menjadi "9" (cancelled)
-    await order.update({ order_status: "9" });
+    // Update status menjadi "Dibatalkan"
+    await order.update({ order_status: "Dibatalkan" });
 
     console.log(`Order ${order_id} cancelled by user ${user_id}`);
 

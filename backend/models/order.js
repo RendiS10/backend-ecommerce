@@ -13,9 +13,15 @@ const Order = sequelize.define(
     order_date: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     total_amount: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
     order_status: {
-      type: DataTypes.STRING(20), // Extended to support legacy "pending_payment" (15 chars)
+      type: DataTypes.ENUM(
+        "Menunggu Konfirmasi",
+        "Diproses",
+        "Dikirim",
+        "Selesai",
+        "Dibatalkan"
+      ),
       allowNull: false,
-      defaultValue: "1", // New orders use "1", but support legacy values
+      defaultValue: "Menunggu Konfirmasi",
     },
     payment_method: {
       type: DataTypes.STRING(50),
