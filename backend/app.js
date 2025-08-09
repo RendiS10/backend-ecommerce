@@ -139,6 +139,14 @@ app.use("/api/messages", messageRoutes); // /api/messages, /api/messages/send
 const variantsRoutes = require("./routes/variantsRoutes");
 app.use("/api/variants", variantsRoutes); // /api/variants, /api/variants/:id
 
+// Product Image Routes - Endpoint untuk CRUD gambar produk
+const productImageRoutes = require("./routes/productImageRoutes");
+app.use("/api/product-images", productImageRoutes); // /api/product-images, /api/product-images/:id
+
+// User Routes - Endpoint untuk CRUD users
+const userRoutes = require("./routes/userRoutes");
+app.use("/api/users", userRoutes); // /api/users, /api/users/:id
+
 // =============================================================================
 // DATABASE CONNECTION & SERVER STARTUP - Koneksi database dan start server
 // =============================================================================

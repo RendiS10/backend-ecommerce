@@ -11,6 +11,9 @@ import Complaints from "./pages/Complaints.jsx";
 import Chat from "./pages/Chat.jsx";
 import NewsProduct from "./pages/NewsProduct.jsx";
 import ProductVariants from "./pages/ProductVariants.jsx";
+import ProductImages from "./pages/ProductImages.jsx";
+import ProductNews from "./pages/ProductNews.jsx";
+import Users from "./pages/Users.jsx";
 
 const router = createBrowserRouter([
   {
@@ -52,6 +55,18 @@ const router = createBrowserRouter([
   {
     path: "/variants",
     element: <ProductVariants />,
+  },
+  {
+    path: "/product-images",
+    element: <ProductImages />,
+  },
+  {
+    path: "/product-news",
+    element: <ProductNews />,
+  },
+  {
+    path: "/users",
+    element: <Users />,
   },
 ]);
 
