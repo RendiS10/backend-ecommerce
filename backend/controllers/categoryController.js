@@ -27,10 +27,14 @@ exports.getAllCategories = async (req, res) => {
 exports.createCategory = async (req, res) => {
   try {
     // Ambil data kategori dari request body
-    const { category_name, slug } = req.body;
+    const { category_name, slug, image_url } = req.body;
 
     // Buat kategori baru di database
-    const category = await ProductCategory.create({ category_name, slug });
+    const category = await ProductCategory.create({
+      category_name,
+      slug,
+      image_url,
+    });
 
     // Kirim response dengan kategori yang baru dibuat
     res.status(201).json(category);
@@ -49,7 +53,7 @@ exports.updateCategory = async (req, res) => {
     const { id } = req.params;
 
     // Ambil data baru dari request body
-    const { category_name, slug } = req.body;
+    const { category_name, slug, image_url } = req.body;
 
     // Cari kategori berdasarkan ID
     const category = await ProductCategory.findByPk(id);
@@ -59,6 +63,7 @@ exports.updateCategory = async (req, res) => {
     // Update data kategori
     category.category_name = category_name;
     category.slug = slug;
+    category.image_url = image_url;
     await category.save();
     res.json(category);
   } catch (err) {

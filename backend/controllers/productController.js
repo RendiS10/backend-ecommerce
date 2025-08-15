@@ -53,22 +53,16 @@ exports.createProduct = async (req, res) => {
   try {
     // Log for debugging
     console.log("req.body:", req.body);
-    console.log("req.file:", req.file);
-    const { category_id, product_name, description, price, stock } = req.body;
-    let main_image = null;
-    if (req.file) {
-      // Simpan hanya path relatif dari folder uploads
-      let relPath = req.file.path.replace(/\\/g, "/");
-      relPath = relPath.replace(/^backend\//, ""); // hilangkan prefix backend/ jika ada
-      main_image = relPath;
-    }
+    const { category_id, product_name, description, price, stock, image_url } =
+      req.body;
+
     const product = await Product.create({
       category_id,
       product_name,
       description,
       price,
       stock,
-      main_image,
+      image_url,
     });
     res.status(201).json(product);
   } catch (err) {
@@ -96,13 +90,8 @@ exports.updateProduct = async (req, res) => {
     if (!product) return res.status(404).json({ message: "Product not found" });
 
     // Ambil data dari body
-    const { product_name, description, price, category_id, stock } = req.body;
-    let main_image = product.main_image;
-    if (req.file) {
-      let relPath = req.file.path.replace(/\\/g, "/");
-      relPath = relPath.replace(/^backend\//, "");
-      main_image = relPath;
-    }
+    const { product_name, description, price, category_id, stock, image_url } =
+      req.body;
 
     // Update field jika ada perubahan
     if (product_name !== undefined) product.product_name = product_name;
@@ -110,7 +99,7 @@ exports.updateProduct = async (req, res) => {
     if (price !== undefined) product.price = price;
     if (category_id !== undefined) product.category_id = category_id;
     if (stock !== undefined) product.stock = stock;
-    if (main_image !== undefined) product.main_image = main_image;
+    if (image_url !== undefined) product.image_url = image_url;
 
     await product.save();
     res.json(product);
