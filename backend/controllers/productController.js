@@ -53,15 +53,16 @@ exports.createProduct = async (req, res) => {
   try {
     // Log for debugging
     console.log("req.body:", req.body);
-    const { category_id, product_name, description, price, stock, image_url } =
+    const { category_id, product_name, description, price, image_url } =
       req.body;
 
+    // Set stock default ke 0, karena stock akan dikelola melalui ProductVariant
     const product = await Product.create({
       category_id,
       product_name,
       description,
       price,
-      stock,
+      stock: 0, // Default stock adalah 0
       image_url,
     });
     res.status(201).json(product);
@@ -89,8 +90,8 @@ exports.updateProduct = async (req, res) => {
     const product = await Product.findByPk(id);
     if (!product) return res.status(404).json({ message: "Product not found" });
 
-    // Ambil data dari body
-    const { product_name, description, price, category_id, stock, image_url } =
+    // Ambil data dari body (stock dihilangkan karena dikelola melalui ProductVariant)
+    const { product_name, description, price, category_id, image_url } =
       req.body;
 
     // Update field jika ada perubahan
@@ -98,8 +99,8 @@ exports.updateProduct = async (req, res) => {
     if (description !== undefined) product.description = description;
     if (price !== undefined) product.price = price;
     if (category_id !== undefined) product.category_id = category_id;
-    if (stock !== undefined) product.stock = stock;
     if (image_url !== undefined) product.image_url = image_url;
+    // Stock tidak diupdate manual, akan dihitung dari ProductVariant
 
     await product.save();
     res.json(product);
