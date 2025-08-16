@@ -27,8 +27,15 @@ async function updateProductStock(product_id) {
 // =============================================================================
 exports.getAllVariants = async (req, res) => {
   try {
-    // Ambil semua varian dari database (untuk admin dashboard)
-    const variants = await ProductVariant.findAll();
+    // Ambil semua varian dari database dengan relasi Product untuk mendapatkan nama produk
+    const variants = await ProductVariant.findAll({
+      include: [
+        {
+          model: Product,
+          attributes: ["product_id", "product_name"],
+        },
+      ],
+    });
 
     // Kirim response dengan daftar varian
     res.json(variants);

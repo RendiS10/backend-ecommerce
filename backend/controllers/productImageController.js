@@ -1,20 +1,12 @@
-// =============================================================================
-// PRODUCT IMAGE CONTROLLER - Controller untuk mengelola gambar produk
-// =============================================================================
-
 const { ProductImage, Product } = require("../models");
 const path = require("path");
 const fs = require("fs");
 
-// =============================================================================
-// GET ALL PRODUCT IMAGES - Mengambil semua gambar produk
-// =============================================================================
 exports.getAllProductImages = async (req, res) => {
   try {
     const { product_id } = req.query;
     const where = {};
 
-    // Filter berdasarkan product_id jika ada
     if (product_id) {
       where.product_id = product_id;
     }
@@ -36,9 +28,6 @@ exports.getAllProductImages = async (req, res) => {
   }
 };
 
-// =============================================================================
-// GET SINGLE PRODUCT IMAGE - Mengambil satu gambar produk berdasarkan ID
-// =============================================================================
 exports.getProductImageById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -61,36 +50,35 @@ exports.getProductImageById = async (req, res) => {
   }
 };
 
-// =============================================================================
-// CREATE PRODUCT IMAGE - Menambah gambar produk baru
-// =============================================================================
 exports.createProductImage = async (req, res) => {
   try {
-    const { product_id, alt_text } = req.body;
+    const { product_id, alt_text, image_path } = req.body;
 
-    // Validasi apakah produk ada
     const product = await Product.findByPk(product_id);
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    let image_path = null;
+    let finalImagePath = null;
+
     if (req.file) {
-      // Simpan path relatif dari folder uploads
       let relPath = req.file.path.replace(/\\/g, "/");
-      relPath = relPath.replace(/^backend\//, ""); // hilangkan prefix backend/ jika ada
-      image_path = relPath;
+      relPath = relPath.replace(/^backend\//, "");
+      finalImagePath = relPath;
+    } else if (image_path) {
+      finalImagePath = image_path;
     } else {
-      return res.status(400).json({ message: "Image file is required" });
+      return res
+        .status(400)
+        .json({ message: "Image file or image URL is required" });
     }
 
     const productImage = await ProductImage.create({
       product_id,
-      image_path,
+      image_path: finalImagePath,
       alt_text,
     });
 
-    // Ambil data lengkap dengan relasi
     const newProductImage = await ProductImage.findByPk(productImage.image_id, {
       include: [
         {
@@ -107,9 +95,6 @@ exports.createProductImage = async (req, res) => {
   }
 };
 
-// =============================================================================
-// UPDATE PRODUCT IMAGE - Mengupdate gambar produk
-// =============================================================================
 exports.updateProductImage = async (req, res) => {
   try {
     const { id } = req.params;
@@ -119,9 +104,8 @@ exports.updateProductImage = async (req, res) => {
       return res.status(404).json({ message: "Product image not found" });
     }
 
-    const { product_id, alt_text } = req.body;
+    const { product_id, alt_text, image_path } = req.body;
 
-    // Validasi apakah produk ada jika product_id diubah
     if (product_id && product_id !== productImage.product_id) {
       const product = await Product.findByPk(product_id);
       if (!product) {
@@ -129,31 +113,21 @@ exports.updateProductImage = async (req, res) => {
       }
     }
 
-    // Update image_path jika ada file baru
-    let image_path = productImage.image_path;
+    let finalImagePath = productImage.image_path;
     if (req.file) {
-      // Hapus file lama jika ada
-      if (productImage.image_path) {
-        const oldFilePath = path.join(__dirname, "..", productImage.image_path);
-        if (fs.existsSync(oldFilePath)) {
-          fs.unlinkSync(oldFilePath);
-        }
-      }
-
-      // Simpan path file baru
       let relPath = req.file.path.replace(/\\/g, "/");
       relPath = relPath.replace(/^backend\//, "");
-      image_path = relPath;
+      finalImagePath = relPath;
+    } else if (image_path && image_path !== productImage.image_path) {
+      finalImagePath = image_path;
     }
 
-    // Update data
     await productImage.update({
       product_id: product_id || productImage.product_id,
-      image_path,
+      image_path: finalImagePath,
       alt_text: alt_text !== undefined ? alt_text : productImage.alt_text,
     });
 
-    // Ambil data lengkap dengan relasi
     const updatedProductImage = await ProductImage.findByPk(id, {
       include: [
         {
@@ -170,9 +144,6 @@ exports.updateProductImage = async (req, res) => {
   }
 };
 
-// =============================================================================
-// DELETE PRODUCT IMAGE - Menghapus gambar produk
-// =============================================================================
 exports.deleteProductImage = async (req, res) => {
   try {
     const { id } = req.params;
@@ -182,15 +153,6 @@ exports.deleteProductImage = async (req, res) => {
       return res.status(404).json({ message: "Product image not found" });
     }
 
-    // Hapus file dari sistem
-    if (productImage.image_path) {
-      const filePath = path.join(__dirname, "..", productImage.image_path);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    }
-
-    // Hapus dari database
     await productImage.destroy();
 
     res.json({ message: "Product image deleted successfully" });
