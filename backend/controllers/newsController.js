@@ -80,6 +80,7 @@ exports.createNews = async (req, res) => {
     // Ambil data berita dari request body
     const {
       product_id, // ID produk yang dihighlight (optional)
+      image_highlight, // URL gambar highlight dari frontend
       highlight_link, // Link tujuan saat banner diklik
       alt_text, // Text alternatif untuk accessibility
       display_order, // Urutan tampil banner (1, 2, 3, ...)
@@ -94,18 +95,22 @@ exports.createNews = async (req, res) => {
       }
     }
 
-    let image_highlight = null;
+    // Handle image_highlight - bisa dari file upload atau URL
+    let finalImageHighlight = null;
     if (req.file) {
-      // Simpan path relatif dari folder uploads
+      // Jika ada file upload
       let relPath = req.file.path.replace(/\\/g, "/");
       relPath = relPath.replace(/^backend\//, ""); // hilangkan prefix backend/ jika ada
-      image_highlight = relPath;
+      finalImageHighlight = relPath;
+    } else if (image_highlight) {
+      // Jika ada URL dari frontend
+      finalImageHighlight = image_highlight;
     }
 
     // Buat berita baru di database
     const news = await ProductNews.create({
       product_id: product_id || null,
-      image_highlight,
+      image_highlight: finalImageHighlight,
       highlight_link,
       alt_text,
       display_order: display_order || 1,
@@ -138,8 +143,14 @@ exports.updateNews = async (req, res) => {
       return res.status(404).json({ message: "News not found" });
     }
 
-    const { product_id, highlight_link, alt_text, display_order, is_active } =
-      req.body;
+    const {
+      product_id,
+      image_highlight, // URL gambar dari frontend
+      highlight_link,
+      alt_text,
+      display_order,
+      is_active,
+    } = req.body;
 
     // Validasi apakah produk ada jika product_id diubah
     if (product_id && product_id !== news.product_id) {
@@ -149,11 +160,13 @@ exports.updateNews = async (req, res) => {
       }
     }
 
-    // Update image_highlight jika ada file baru
-    let image_highlight = news.image_highlight;
+    // Handle image_highlight - bisa dari file upload atau URL
+    let finalImageHighlight = news.image_highlight; // Keep existing by default
+
     if (req.file) {
-      // Hapus file lama jika ada
-      if (news.image_highlight) {
+      // Jika ada file upload baru
+      // Hapus file lama jika ada dan bukan URL
+      if (news.image_highlight && !news.image_highlight.startsWith("http")) {
         const path = require("path");
         const fs = require("fs");
         const oldFilePath = path.join(__dirname, "..", news.image_highlight);
@@ -165,13 +178,16 @@ exports.updateNews = async (req, res) => {
       // Simpan path file baru
       let relPath = req.file.path.replace(/\\/g, "/");
       relPath = relPath.replace(/^backend\//, "");
-      image_highlight = relPath;
+      finalImageHighlight = relPath;
+    } else if (image_highlight !== undefined) {
+      // Jika ada URL baru dari frontend
+      finalImageHighlight = image_highlight;
     }
 
     // Update data
     await news.update({
       product_id: product_id !== undefined ? product_id : news.product_id,
-      image_highlight,
+      image_highlight: finalImageHighlight,
       highlight_link:
         highlight_link !== undefined ? highlight_link : news.highlight_link,
       alt_text: alt_text !== undefined ? alt_text : news.alt_text,
