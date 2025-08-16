@@ -9,6 +9,8 @@ const {
   OrderItem,
   Product,
   ProductVariant,
+  Cart,
+  CartItem,
 } = require("../models");
 
 // =============================================================================
@@ -174,7 +176,17 @@ exports.approvePayment = async (req, res) => {
 
     const payment = await Payment.findOne({
       where: { payment_id },
-      include: [Order],
+      include: [
+        {
+          model: Order,
+          include: [
+            {
+              model: OrderItem,
+              include: [Product, ProductVariant],
+            },
+          ],
+        },
+      ],
     });
 
     if (!payment) {
@@ -187,21 +199,138 @@ exports.approvePayment = async (req, res) => {
         .json({ message: "Status pembayaran tidak valid untuk persetujuan" });
     }
 
-    // Update payment status
-    await payment.update({
-      payment_status: "Disetujui",
-      admin_notes,
-    });
+    // Start transaction untuk memastikan konsistensi data
+    const transaction = await Payment.sequelize.transaction();
 
-    // Update order status
-    await payment.Order.update({
-      order_status: "Disetujui",
-    });
+    try {
+      // Update payment status
+      await payment.update(
+        {
+          payment_status: "Disetujui",
+          admin_notes,
+        },
+        { transaction }
+      );
 
-    res.json({
-      message: "Pembayaran berhasil disetujui",
-      payment,
-    });
+      // Update order status
+      await payment.Order.update(
+        {
+          order_status: "Disetujui",
+        },
+        { transaction }
+      );
+
+      // Kurangi stock dan hapus cart items
+      for (const orderItem of payment.Order.OrderItems) {
+        // 1. Kurangi stock product variant jika ada
+        if (orderItem.variant_id) {
+          const variant = await ProductVariant.findByPk(orderItem.variant_id, {
+            transaction,
+          });
+
+          if (variant) {
+            if (variant.variant_stock < orderItem.quantity) {
+              throw new Error(
+                `Stock variant ${variant.color || ""} ${
+                  variant.size || ""
+                } tidak mencukupi. Stock tersedia: ${
+                  variant.variant_stock
+                }, diminta: ${orderItem.quantity}`
+              );
+            }
+
+            await variant.update(
+              {
+                variant_stock: variant.variant_stock - orderItem.quantity,
+              },
+              { transaction }
+            );
+
+            console.log(
+              `Stock variant ID ${orderItem.variant_id} dikurangi ${
+                orderItem.quantity
+              }. Stock sekarang: ${variant.variant_stock - orderItem.quantity}`
+            );
+          }
+        } else {
+          // 2. Kurangi stock produk utama jika tidak ada variant
+          const product = await Product.findByPk(orderItem.product_id, {
+            transaction,
+          });
+
+          if (product) {
+            if (product.stock < orderItem.quantity) {
+              throw new Error(
+                `Stock produk ${product.product_name} tidak mencukupi. Stock tersedia: ${product.stock}, diminta: ${orderItem.quantity}`
+              );
+            }
+
+            await product.update(
+              {
+                stock: product.stock - orderItem.quantity,
+              },
+              { transaction }
+            );
+
+            console.log(
+              `Stock produk ID ${orderItem.product_id} dikurangi ${
+                orderItem.quantity
+              }. Stock sekarang: ${product.stock - orderItem.quantity}`
+            );
+          }
+        }
+
+        // 3. Hapus item dari keranjang user
+        const userCart = await Cart.findOne({
+          where: { user_id: payment.Order.user_id },
+          transaction,
+        });
+
+        if (userCart) {
+          // Hapus cart item yang sesuai dengan order item
+          const cartItemFilter = {
+            cart_id: userCart.cart_id,
+            product_id: orderItem.product_id,
+          };
+
+          // Tambahkan variant_id ke filter jika ada
+          if (orderItem.variant_id) {
+            cartItemFilter.variant_id = orderItem.variant_id;
+          }
+
+          const deletedCount = await CartItem.destroy({
+            where: cartItemFilter,
+            transaction,
+          });
+
+          console.log(
+            `Menghapus ${deletedCount} cart item untuk produk ID ${
+              orderItem.product_id
+            }${
+              orderItem.variant_id ? ` variant ID ${orderItem.variant_id}` : ""
+            }`
+          );
+        }
+      }
+
+      // Commit transaction jika semua berhasil
+      await transaction.commit();
+
+      res.json({
+        message:
+          "Pembayaran berhasil disetujui, stock dikurangi, dan keranjang dibersihkan",
+        payment,
+        stockUpdates: payment.Order.OrderItems.map((item) => ({
+          product_id: item.product_id,
+          variant_id: item.variant_id,
+          quantity_reduced: item.quantity,
+        })),
+      });
+    } catch (error) {
+      // Rollback transaction jika ada error
+      await transaction.rollback();
+      throw error;
+    }
   } catch (error) {
     console.error("Error approving payment:", error);
     res.status(500).json({ message: error.message });
