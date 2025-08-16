@@ -158,7 +158,8 @@ app.use("/api/payments", paymentRoutes); // /api/payments, /api/payments/:id
 // Melakukan sinkronisasi database dengan model Sequelize
 // Membuat/update tabel sesuai dengan definisi model yang ada
 sequelize.sync().then(() => {
-  // Menjalankan server Express pada port 5000 setelah database berhasil tersambung
+  // Menjalankan server Express pada port dari environment variable atau default 3000
   // Server akan siap menerima request HTTP dari frontend
-  app.listen(5000, () => console.log("Server Berjalan di port 5000"));
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log(`Server Berjalan di port ${PORT}`));
 });

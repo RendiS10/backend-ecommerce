@@ -6,6 +6,35 @@
 const { Review, Product, User, Order, OrderItem } = require("../models");
 
 // =============================================================================
+// GET ALL REVIEWS - Mengambil semua review (untuk admin)
+// =============================================================================
+exports.getAllReviews = async (req, res) => {
+  try {
+    // Cari semua review dengan info product dan user
+    const reviews = await Review.findAll({
+      include: [
+        {
+          model: Product,
+          attributes: ["product_id", "product_name"],
+        },
+        {
+          model: User,
+          attributes: ["user_id", "full_name", "email"],
+        },
+      ],
+      order: [["review_date", "DESC"]], // Urutkan berdasarkan tanggal terbaru
+    });
+
+    // Kirim response dengan daftar semua review
+    res.json(reviews);
+  } catch (err) {
+    // Handle error database
+    console.error("Error fetching all reviews:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// =============================================================================
 // GET PRODUCT REVIEWS - Mengambil semua review untuk produk tertentu
 // =============================================================================
 exports.getProductReviews = async (req, res) => {
@@ -185,6 +214,214 @@ exports.getUserReviews = async (req, res) => {
     res.json(reviews);
   } catch (error) {
     console.error("Error fetching user reviews:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// =============================================================================
+// UPDATE REVIEW - Update review (untuk admin)
+// =============================================================================
+exports.updateReview = async (req, res) => {
+  try {
+    const { review_id } = req.params;
+    const { product_id, user_id, rating, comment } = req.body;
+
+    // Validasi input
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({
+        message: "Rating harus antara 1-5",
+      });
+    }
+
+    // Cari review yang akan diupdate
+    const review = await Review.findByPk(review_id);
+    if (!review) {
+      return res.status(404).json({
+        message: "Review tidak ditemukan",
+      });
+    }
+
+    // Update review
+    await review.update({
+      product_id,
+      user_id,
+      rating,
+      comment,
+    });
+
+    // Ambil review yang sudah diupdate dengan include
+    const updatedReview = await Review.findByPk(review_id, {
+      include: [
+        {
+          model: Product,
+          attributes: ["product_id", "product_name"],
+        },
+        {
+          model: User,
+          attributes: ["user_id", "full_name", "email"],
+        },
+      ],
+    });
+
+    res.json({
+      message: "Review berhasil diupdate",
+      review: updatedReview,
+    });
+  } catch (error) {
+    console.error("Error updating review:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// =============================================================================
+// DELETE REVIEW - Hapus review (untuk admin)
+// =============================================================================
+exports.deleteReview = async (req, res) => {
+  try {
+    const { review_id } = req.params;
+
+    // Cari review yang akan dihapus
+    const review = await Review.findByPk(review_id);
+    if (!review) {
+      return res.status(404).json({
+        message: "Review tidak ditemukan",
+      });
+    }
+
+    // Hapus review
+    await review.destroy();
+
+    res.json({
+      message: "Review berhasil dihapus",
+    });
+  } catch (error) {
+    console.error("Error deleting review:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// =============================================================================
+// CREATE REVIEW FOR ADMIN - Membuat review baru (untuk admin)
+// =============================================================================
+exports.createReviewAdmin = async (req, res) => {
+  try {
+    const { product_id, user_id, rating, comment } = req.body;
+
+    // Validasi input
+    if (!product_id || !user_id || !rating) {
+      return res.status(400).json({
+        message: "Product ID, User ID, dan rating harus diisi",
+      });
+    }
+
+    if (rating < 1 || rating > 5) {
+      return res.status(400).json({
+        message: "Rating harus antara 1-5",
+      });
+    }
+
+    // Cek apakah product dan user exist
+    const product = await Product.findByPk(product_id);
+    const user = await User.findByPk(user_id);
+
+    if (!product) {
+      return res.status(404).json({
+        message: "Produk tidak ditemukan",
+      });
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User tidak ditemukan",
+      });
+    }
+
+    // Buat review baru
+    const newReview = await Review.create({
+      product_id,
+      user_id,
+      rating,
+      comment: comment || "",
+      review_date: new Date(),
+    });
+
+    // Ambil review yang baru dibuat dengan include
+    const createdReview = await Review.findByPk(newReview.review_id, {
+      include: [
+        {
+          model: Product,
+          attributes: ["product_id", "product_name"],
+        },
+        {
+          model: User,
+          attributes: ["user_id", "full_name", "email"],
+        },
+      ],
+    });
+
+    res.status(201).json({
+      message: "Review berhasil dibuat",
+      review: createdReview,
+    });
+  } catch (error) {
+    console.error("Error creating review:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// =============================================================================
+// REPLY TO REVIEW - Admin membalas review customer
+// =============================================================================
+exports.replyToReview = async (req, res) => {
+  try {
+    console.log("🎯 ReplyToReview controller called!");
+    console.log("📋 Params:", req.params);
+    console.log("📝 Body:", req.body);
+
+    const { review_id } = req.params;
+    const { admin_reply } = req.body;
+
+    // Validasi input
+    if (!admin_reply || admin_reply.trim() === "") {
+      console.log("❌ Validation failed: admin_reply is empty");
+      return res.status(400).json({
+        message: "Admin reply tidak boleh kosong",
+      });
+    }
+
+    // Cari review yang akan dibalas
+    const review = await Review.findByPk(review_id);
+    if (!review) {
+      return res.status(404).json({
+        message: "Review tidak ditemukan",
+      });
+    }
+
+    // Update review dengan admin reply
+    await review.update({
+      admin_reply: admin_reply.trim(),
+    });
+
+    // Ambil review yang sudah diupdate dengan include
+    const updatedReview = await Review.findByPk(review_id, {
+      include: [
+        {
+          model: Product,
+          attributes: ["product_id", "product_name"],
+        },
+        {
+          model: User,
+          attributes: ["user_id", "full_name", "email"],
+        },
+      ],
+    });
+
+    res.json({
+      message: "Reply berhasil disimpan",
+      review: updatedReview,
+    });
+  } catch (error) {
+    console.error("Error replying to review:", error);
     res.status(500).json({ message: error.message });
   }
 };
