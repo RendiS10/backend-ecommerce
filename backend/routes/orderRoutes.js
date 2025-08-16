@@ -17,21 +17,21 @@ router.post(
   isAuthenticated,
   [
     body("shipping_address").isObject(),
-    body("payment_method").isIn(["cod"]),
+    body("payment_method").isIn(["transfer"]),
     body("cart_items").isArray({ min: 1 }),
   ],
   orderController.createOrder
 );
 
-// CONFIRM COD order
-router.patch(
-  "/:order_id/confirm-cod",
-  isAuthenticated,
-  orderController.confirmCODOrder
-);
-
 // CANCEL order (customer)
 router.patch("/:order_id/cancel", isAuthenticated, orderController.cancelOrder);
+
+// CONFIRM order received (customer)
+router.patch(
+  "/:order_id/confirm-received",
+  isAuthenticated,
+  orderController.confirmOrderReceived
+);
 
 // UPDATE order status (admin only)
 router.patch(
@@ -41,7 +41,8 @@ router.patch(
   [
     body("order_status").isIn([
       "Menunggu Konfirmasi",
-      "Diproses",
+      "Disetujui",
+      "Akan Dikirimkan",
       "Dikirim",
       "Selesai",
       "Dibatalkan",

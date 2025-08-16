@@ -147,6 +147,10 @@ app.use("/api/product-images", productImageRoutes); // /api/product-images, /api
 const userRoutes = require("./routes/userRoutes");
 app.use("/api/users", userRoutes); // /api/users, /api/users/:id
 
+// Payment Routes - Endpoint untuk pembayaran transfer
+const paymentRoutes = require("./routes/paymentRoutes");
+app.use("/api/payments", paymentRoutes); // /api/payments, /api/payments/:id
+
 // =============================================================================
 // DATABASE CONNECTION & SERVER STARTUP - Koneksi database dan start server
 // =============================================================================

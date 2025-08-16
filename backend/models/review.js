@@ -11,6 +11,7 @@ const Review = sequelize.define(
     },
     product_id: { type: DataTypes.INTEGER, allowNull: false },
     user_id: { type: DataTypes.INTEGER, allowNull: false },
+    order_id: { type: DataTypes.INTEGER, allowNull: true }, // Menambahkan order_id
     rating: { type: DataTypes.TINYINT, allowNull: false },
     comment: { type: DataTypes.TEXT, allowNull: true },
     review_date: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },

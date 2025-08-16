@@ -13,6 +13,7 @@ const Review = require("./review");
 const Transaction = require("./transaction");
 const Complaint = require("./complaint");
 const Message = require("./message");
+const Payment = require("./payment");
 
 // Relasi produk dengan kategori
 Product.belongsTo(ProductCategory, { foreignKey: "category_id" });
@@ -70,6 +71,10 @@ Review.belongsTo(Product, { foreignKey: "product_id" });
 User.hasMany(Review, { foreignKey: "user_id" });
 Review.belongsTo(User, { foreignKey: "user_id" });
 
+// Relasi order dengan review
+Order.hasMany(Review, { foreignKey: "order_id" });
+Review.belongsTo(Order, { foreignKey: "order_id" });
+
 // Relasi order dengan transaksi
 Order.hasMany(Transaction, { foreignKey: "order_id" });
 Transaction.belongsTo(Order, { foreignKey: "order_id" });
@@ -88,6 +93,13 @@ User.hasMany(Message, { foreignKey: "receiver_id", as: "ReceivedMessages" });
 Message.belongsTo(User, { foreignKey: "sender_id", as: "Sender" });
 Message.belongsTo(User, { foreignKey: "receiver_id", as: "Receiver" });
 
+// Relasi payment dengan order dan user
+Order.hasOne(Payment, { foreignKey: "order_id" });
+Payment.belongsTo(Order, { foreignKey: "order_id" });
+
+User.hasMany(Payment, { foreignKey: "user_id" });
+Payment.belongsTo(User, { foreignKey: "user_id" });
+
 module.exports = {
   Product,
   ProductCategory,
@@ -103,4 +115,5 @@ module.exports = {
   Transaction,
   Complaint,
   Message,
+  Payment,
 };

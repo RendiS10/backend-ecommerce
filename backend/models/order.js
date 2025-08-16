@@ -15,7 +15,8 @@ const Order = sequelize.define(
     order_status: {
       type: DataTypes.ENUM(
         "Menunggu Konfirmasi",
-        "Diproses",
+        "Disetujui",
+        "Akan Dikirimkan",
         "Dikirim",
         "Selesai",
         "Dibatalkan"
@@ -24,9 +25,9 @@ const Order = sequelize.define(
       defaultValue: "Menunggu Konfirmasi",
     },
     payment_method: {
-      type: DataTypes.STRING(50),
+      type: DataTypes.ENUM("transfer"),
       allowNull: false,
-      defaultValue: "cod",
+      defaultValue: "transfer",
     },
     shipping_address: { type: DataTypes.TEXT },
     shipping_city: { type: DataTypes.STRING(100) },

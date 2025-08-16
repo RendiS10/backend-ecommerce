@@ -9,6 +9,7 @@ const {
   Product, // Model produk untuk detail item
   ProductVariant, // Model varian produk (size, color, dll)
   User, // Model user untuk info customer
+  Payment, // Model pembayaran untuk transfer
 } = require("../models");
 
 // =============================================================================
@@ -98,12 +99,12 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ message: "Data pesanan tidak lengkap" });
     }
 
-    // Validasi payment_method hanya COD
-    if (payment_method !== "cod") {
+    // Validasi payment_method
+    if (payment_method !== "transfer") {
       console.log("Invalid payment method:", payment_method);
-      return res
-        .status(400)
-        .json({ message: "Hanya metode pembayaran COD yang tersedia" });
+      return res.status(400).json({
+        message: "Hanya metode pembayaran Transfer yang tersedia",
+      });
     }
 
     // Validasi cart_items tidak kosong dan memiliki data yang diperlukan
@@ -187,10 +188,24 @@ exports.createOrder = async (req, res) => {
       });
     }
 
-    // ❌ HAPUS AUTO-UPDATE STATUS - Biarkan pesanan tetap status "Menunggu Konfirmasi"
-    // Semua pesanan (termasuk COD) harus menunggu konfirmasi admin dulu
-
     console.log("Order created successfully:", order.order_id);
+
+    // Jika payment method adalah transfer, buat Payment record otomatis
+    if (payment_method === "transfer") {
+      try {
+        await Payment.create({
+          order_id: order.order_id,
+          user_id: user_id,
+          payment_amount: order.total_amount,
+          payment_method: "transfer",
+          payment_status: "Menunggu Pembayaran",
+        });
+        console.log("Payment record created for transfer order");
+      } catch (paymentError) {
+        console.error("Error creating payment record:", paymentError);
+        // Tidak perlu gagalkan order jika payment record gagal dibuat
+      }
+    }
 
     // Status tetap "Menunggu Konfirmasi" untuk semua pesanan
     const finalStatus = "Menunggu Konfirmasi";
@@ -213,39 +228,6 @@ exports.createOrder = async (req, res) => {
       error: err.message,
       stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
     });
-  }
-};
-
-// =============================================================================
-// CONFIRM COD ORDER - Konfirmasi pesanan COD
-// =============================================================================
-exports.confirmCODOrder = async (req, res) => {
-  try {
-    const { order_id } = req.params;
-    const user_id = req.user.user_id;
-
-    // Cari order berdasarkan ID dan pastikan milik user yang login
-    const order = await Order.findOne({
-      where: { order_id, user_id },
-    });
-
-    if (!order) {
-      return res.status(404).json({ message: "Pesanan tidak ditemukan" });
-    }
-
-    if (order.payment_method !== "cod") {
-      return res
-        .status(400)
-        .json({ message: "Konfirmasi hanya untuk pesanan COD" });
-    }
-
-    // Update status order COD
-    order.order_status = "Diproses";
-    await order.save();
-
-    res.json({ message: "Pesanan COD berhasil dikonfirmasi", order });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
   }
 };
 
@@ -294,7 +276,7 @@ exports.cancelOrder = async (req, res) => {
 
     if (!cancellableStatuses.includes(order.order_status)) {
       return res.status(400).json({
-        message: `Pesanan tidak dapat dibatalkan karena sudah diproses atau dikirim (Current status: ${order.order_status})`,
+        message: `Pesanan tidak dapat dibatalkan karena status saat ini: ${order.order_status}`,
       });
     }
 
@@ -313,6 +295,51 @@ exports.cancelOrder = async (req, res) => {
     });
   } catch (err) {
     console.error("Error cancelling order:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// =============================================================================
+// CONFIRM ORDER RECEIVED - Customer mengkonfirmasi pesanan telah diterima
+// =============================================================================
+exports.confirmOrderReceived = async (req, res) => {
+  try {
+    const { order_id } = req.params;
+    const user_id = req.user.user_id;
+
+    // Cari order berdasarkan ID dan pastikan milik user yang login
+    const order = await Order.findOne({
+      where: { order_id, user_id },
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: "Pesanan tidak ditemukan" });
+    }
+
+    // Validasi status pesanan - hanya bisa dikonfirmasi jika sudah dikirim
+    if (order.order_status !== "Dikirim") {
+      return res.status(400).json({
+        message: `Pesanan tidak dapat dikonfirmasi karena belum dalam status dikirim (Current status: ${order.order_status})`,
+      });
+    }
+
+    // Update status langsung menjadi "Selesai" - otomatis tanpa perlu admin action
+    await order.update({ order_status: "Selesai" });
+
+    console.log(
+      `Order ${order_id} confirmed received and completed automatically by user ${user_id}`
+    );
+
+    res.json({
+      message: "Pesanan berhasil dikonfirmasi dan otomatis diselesaikan",
+      order: {
+        order_id: order.order_id,
+        order_status: order.order_status,
+        total_amount: order.total_amount,
+      },
+    });
+  } catch (err) {
+    console.error("Error confirming order received:", err);
     res.status(500).json({ message: err.message });
   }
 };
