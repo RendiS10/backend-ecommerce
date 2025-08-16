@@ -343,3 +343,61 @@ exports.confirmOrderReceived = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// =============================================================================
+// GET PENDING NOTIFICATIONS - Mengambil notifikasi pesanan baru untuk admin
+// =============================================================================
+exports.getPendingNotifications = async (req, res) => {
+  try {
+    // Ambil pesanan yang baru dan perlu perhatian admin
+    const pendingOrders = await Order.findAll({
+      where: {
+        order_status: "Menunggu Konfirmasi",
+      },
+      include: [
+        {
+          model: User,
+          attributes: ["user_id", "full_name", "email"],
+        },
+        {
+          model: OrderItem,
+          include: [Product, ProductVariant],
+        },
+      ],
+      order: [["order_date", "DESC"]],
+      limit: 10, // Batas 10 notifikasi terbaru
+    });
+
+    // Ambil pembayaran yang perlu konfirmasi
+    const { Payment } = require("../models");
+    const pendingPayments = await Payment.findAll({
+      where: {
+        payment_status: "Menunggu Konfirmasi",
+      },
+      include: [
+        {
+          model: Order,
+          include: [
+            {
+              model: User,
+              attributes: ["user_id", "full_name", "email"],
+            },
+          ],
+        },
+      ],
+      order: [["confirmation_date", "DESC"]],
+      limit: 5, // Batas 5 pembayaran terbaru
+    });
+
+    res.json({
+      pendingOrders: pendingOrders.length,
+      pendingPayments: pendingPayments.length,
+      recentOrders: pendingOrders.slice(0, 5),
+      recentPayments: pendingPayments.slice(0, 3),
+      totalNotifications: pendingOrders.length + pendingPayments.length,
+    });
+  } catch (err) {
+    console.error("Error fetching notifications:", err);
+    res.status(500).json({ message: err.message });
+  }
+};

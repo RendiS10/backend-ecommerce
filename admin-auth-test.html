@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Test Admin Auth & Refresh</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      .section {
+        margin: 20px 0;
+        padding: 15px;
+        border: 1px solid #ccc;
+      }
+      .success {
+        color: green;
+      }
+      .error {
+        color: red;
+      }
+      .info {
+        color: blue;
+      }
+      button {
+        margin: 5px;
+        padding: 10px;
+      }
+      #output {
+        white-space: pre-wrap;
+        font-family: monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Admin Auth & Refresh Test</h1>
+
+    <div class="section">
+      <h2>Test Steps</h2>
+      <button onclick="testLogin()">1. Test Login</button>
+      <button onclick="testAuthMe()">2. Test Auth Me</button>
+      <button onclick="testLocalStorage()">3. Check LocalStorage</button>
+      <button onclick="clearStorage()">4. Clear Storage</button>
+      <button onclick="simulateRefresh()">5. Simulate Refresh</button>
+    </div>
+
+    <div class="section">
+      <h2>Quick Access</h2>
+      <a href="http://localhost:5173/admin/login" target="_blank"
+        >Admin Login</a
+      >
+      |
+      <a href="http://localhost:5173/admin/products" target="_blank"
+        >Admin Products</a
+      >
+      |
+      <a href="http://localhost:5173/" target="_blank">Customer Home</a>
+    </div>
+
+    <div class="section">
+      <h2>Output</h2>
+      <div id="output"></div>
+    </div>
+
+    <script>
+      const output = document.getElementById("output");
+
+      function log(message, type = "info") {
+        const timestamp = new Date().toLocaleTimeString();
+        const className =
+          type === "error" ? "error" : type === "success" ? "success" : "info";
+        output.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+        console.log(message);
+      }
+
+      async function testLogin() {
+        log("🔐 Testing admin login...", "info");
+
+        try {
+          const response = await fetch("http://localhost:5000/api/auth/login", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email: "admin@admin.com",
+              password: "admin123",
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(
+              `Login failed: ${response.status} ${response.statusText}`
+            );
+          }
+
+          const data = await response.json();
+          localStorage.setItem("token", data.token);
+          localStorage.setItem("user", JSON.stringify(data.user));
+
+          log(`✅ Login successful!`, "success");
+          log(`Token: ${data.token}`, "info");
+          log(`User: ${JSON.stringify(data.user, null, 2)}`, "info");
+        } catch (error) {
+          log(`❌ Login error: ${error.message}`, "error");
+        }
+      }
+
+      async function testAuthMe() {
+        log("👤 Testing /auth/me endpoint...", "info");
+
+        const token = localStorage.getItem("token");
+        if (!token) {
+          log("❌ No token found in localStorage", "error");
+          return;
+        }
+
+        try {
+          const response = await fetch("http://localhost:5000/api/auth/me", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (!response.ok) {
+            throw new Error(
+              `Auth me failed: ${response.status} ${response.statusText}`
+            );
+          }
+
+          const userData = await response.json();
+          log(`✅ Auth me successful!`, "success");
+          log(`User data: ${JSON.stringify(userData, null, 2)}`, "info");
+
+          if (userData.role === "admin") {
+            log("✅ User has admin role", "success");
+          } else {
+            log(`❌ User role is: ${userData.role}`, "error");
+          }
+        } catch (error) {
+          log(`❌ Auth me error: ${error.message}`, "error");
+        }
+      }
+
+      function testLocalStorage() {
+        log("💾 Checking localStorage...", "info");
+
+        const token = localStorage.getItem("token");
+        const user = localStorage.getItem("user");
+
+        log(`Token exists: ${!!token}`, token ? "success" : "error");
+        if (token) {
+          log(`Token: ${token}`, "info");
+        }
+
+        log(`User exists: ${!!user}`, user ? "success" : "error");
+        if (user) {
+          try {
+            const userData = JSON.parse(user);
+            log(`User: ${JSON.stringify(userData, null, 2)}`, "info");
+          } catch (e) {
+            log(`❌ Invalid user data in localStorage: ${user}`, "error");
+          }
+        }
+      }
+
+      function clearStorage() {
+        log("🗑️ Clearing localStorage...", "info");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        log("✅ Storage cleared", "success");
+      }
+
+      async function simulateRefresh() {
+        log("🔄 Simulating page refresh scenario...", "info");
+
+        // Clear current state
+        log("1. Clearing current auth state...", "info");
+
+        // Check if token exists
+        const token = localStorage.getItem("token");
+        if (!token) {
+          log("❌ No token found - user would be redirected to login", "error");
+          return;
+        }
+
+        log(`2. Token found: ${token}`, "success");
+
+        // Simulate UserContext initialization
+        log("3. Simulating UserContext initialization...", "info");
+
+        try {
+          const response = await fetch("http://localhost:5000/api/auth/me", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (response.ok) {
+            const userData = await response.json();
+            log("✅ UserContext would load user successfully", "success");
+            log(`User: ${JSON.stringify(userData, null, 2)}`, "info");
+
+            if (userData.role === "admin") {
+              log("✅ Admin access confirmed - no redirect needed", "success");
+            } else {
+              log("❌ User is not admin - would redirect to login", "error");
+            }
+          } else {
+            log(
+              "❌ Token invalid - user would be redirected to login",
+              "error"
+            );
+          }
+        } catch (error) {
+          log(
+            `❌ Network error - user would be redirected to login: ${error.message}`,
+            "error"
+          );
+        }
+      }
+
+      // Auto-run initial checks
+      log("🚀 Starting admin auth tests...", "info");
+      testLocalStorage();
+    </script>
+  </body>
+</html>

@@ -11,6 +11,14 @@ router.get("/", isAuthenticated, orderController.getUserOrders);
 // GET all orders (admin only)
 router.get("/all", isAuthenticated, isAdmin, orderController.getAllOrders);
 
+// GET pending notifications (admin only)
+router.get(
+  "/notifications",
+  isAuthenticated,
+  isAdmin,
+  orderController.getPendingNotifications
+);
+
 // CREATE new order
 router.post(
   "/",
