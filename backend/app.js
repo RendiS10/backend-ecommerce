@@ -304,6 +304,65 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Handle end chat session
+  socket.on("end_chat_session", async (data) => {
+    const { customerId } = data;
+    const user = activeUsers.get(socket.id);
+
+    if (!user || user.userRole !== "admin") {
+      socket.emit("session_error", {
+        error: "Only admin can end chat sessions",
+      });
+      return;
+    }
+
+    try {
+      const { Message, Op } = require("./models");
+
+      // Hapus semua pesan antara admin dan customer
+      const deletedCount = await Message.destroy({
+        where: {
+          [Op.or]: [
+            {
+              sender_id: user.userId,
+              recipient_id: parseInt(customerId),
+            },
+            {
+              sender_id: parseInt(customerId),
+              recipient_id: user.userId,
+            },
+            {
+              sender_id: parseInt(customerId),
+              recipient_id: null,
+              sender_type: "customer",
+            },
+          ],
+        },
+      });
+
+      // Notify admin tentang session berakhir
+      socket.emit("session_ended", {
+        customerId: customerId,
+        deletedMessages: deletedCount,
+        message: "Chat session ended successfully",
+      });
+
+      // Notify customer jika online bahwa session telah berakhir
+      const customerSocket = Array.from(activeUsers.entries()).find(
+        ([socketId, userData]) => userData.userId == customerId
+      );
+
+      if (customerSocket) {
+        io.to(customerSocket[0]).emit("session_ended_by_admin", {
+          message: "Chat session has been ended by admin",
+        });
+      }
+    } catch (error) {
+      console.error("Error ending chat session:", error);
+      socket.emit("session_error", { error: "Failed to end chat session" });
+    }
+  });
+
   // Handle disconnect
   socket.on("disconnect", () => {
     const user = activeUsers.get(socket.id);

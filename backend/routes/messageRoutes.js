@@ -32,4 +32,17 @@ router.put(
   messageController.markAsRead
 );
 
+// DELETE /api/messages/end-session - Admin mengakhiri chat session
+router.delete(
+  "/end-session",
+  isAuthenticated,
+  [
+    body("customer_id")
+      .notEmpty()
+      .isNumeric()
+      .withMessage("Valid customer ID is required"),
+  ],
+  messageController.endChatSession
+);
+
 module.exports = router;

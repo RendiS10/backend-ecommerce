@@ -246,3 +246,66 @@ exports.markAsRead = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// =============================================================================
+// END CHAT SESSION - Admin mengakhiri dan menghapus riwayat chat
+// =============================================================================
+exports.endChatSession = async (req, res) => {
+  try {
+    const user_id = req.user.user_id;
+    const user_role = req.user.role;
+    const { customer_id } = req.body;
+
+    // Validasi: hanya admin yang bisa mengakhiri sesi
+    if (user_role !== "admin") {
+      return res
+        .status(403)
+        .json({ message: "Only admin can end chat sessions" });
+    }
+
+    // Validasi: customer_id harus ada
+    if (!customer_id) {
+      return res.status(400).json({ message: "Customer ID is required" });
+    }
+
+    // Hapus semua pesan antara admin dan customer ini
+    const deletedCount = await Message.destroy({
+      where: {
+        [Op.or]: [
+          {
+            sender_id: user_id,
+            recipient_id: parseInt(customer_id),
+          },
+          {
+            sender_id: parseInt(customer_id),
+            recipient_id: user_id,
+          },
+          {
+            sender_id: parseInt(customer_id),
+            recipient_id: null,
+            sender_type: "customer",
+          },
+        ],
+      },
+    });
+
+    // Cek apakah customer masih ada
+    const customer = await User.findByPk(customer_id);
+    if (!customer) {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+
+    res.json({
+      message: "Chat session ended successfully",
+      deletedMessages: deletedCount,
+      customer: {
+        user_id: customer.user_id,
+        full_name: customer.full_name,
+        email: customer.email,
+      },
+    });
+  } catch (err) {
+    console.error("Error ending chat session:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
