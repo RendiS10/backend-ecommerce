@@ -1,71 +1,248 @@
 // =============================================================================
-// MESSAGE CONTROLLER - Controller untuk mengelola live chat/pesan
+// MESSAGE CONTROLLER - Controller untuk mengelola live chat/pesan real-time
 // =============================================================================
 
 // Mengimpor model yang dibutuhkan untuk operasi pesan
-const { Message, User } = require("../models");
+const { Message, User, Op } = require("../models");
 
 // =============================================================================
-// GET MESSAGES - Mengambil semua pesan yang diterima user
+// GET MESSAGES - Mengambil riwayat chat antara user dan admin
 // =============================================================================
 exports.getMessages = async (req, res) => {
   try {
-    // Ambil user_id dari token JWT (user yang sedang login)
     const user_id = req.user.user_id;
+    const user_role = req.user.role;
+    const { with_user } = req.query; // Optional: specific user untuk admin
 
-    // Ambil semua pesan yang diterima user dengan info pengirim
+    let whereClause = {};
+
+    if (user_role === "admin") {
+      // Admin bisa melihat chat dengan customer tertentu atau semua chat
+      if (with_user) {
+        whereClause = {
+          [Op.or]: [
+            {
+              sender_id: user_id,
+              recipient_id: parseInt(with_user),
+            },
+            {
+              sender_id: parseInt(with_user),
+              recipient_id: user_id,
+            },
+            {
+              sender_id: parseInt(with_user),
+              recipient_id: null,
+            },
+          ],
+        };
+      } else {
+        // Semua pesan ke admin atau dari admin
+        whereClause = {
+          [Op.or]: [
+            { recipient_id: user_id },
+            { sender_id: user_id },
+            {
+              recipient_id: null,
+              sender_type: "customer",
+            },
+          ],
+        };
+      }
+    } else {
+      // Customer hanya melihat chat dengan admin
+      whereClause = {
+        [Op.or]: [
+          { sender_id: user_id },
+          { recipient_id: user_id },
+          {
+            sender_id: user_id,
+            recipient_id: null,
+          },
+        ],
+      };
+    }
+
     const messages = await Message.findAll({
-      where: { receiver_id: user_id }, // Filter pesan yang diterima user
+      where: whereClause,
       include: [
         {
           model: User,
-          as: "Sender", // Alias untuk pengirim pesan
-          attributes: ["user_id", "full_name", "role"], // Hanya ambil field tertentu
+          as: "Sender",
+          attributes: ["user_id", "full_name", "role"],
+        },
+        {
+          model: User,
+          as: "Recipient",
+          attributes: ["user_id", "full_name", "role"],
+          required: false,
         },
       ],
-      order: [["sent_at", "ASC"]], // Urutkan berdasarkan waktu kirim (lama ke baru)
+      order: [["created_at", "ASC"]],
     });
 
-    // Kirim response dengan daftar pesan
     res.json(messages);
   } catch (err) {
-    // Handle error database
+    console.error("Error fetching messages:", err);
     res.status(500).json({ message: err.message });
   }
 };
 
 // =============================================================================
-// SEND MESSAGE - Mengirim pesan baru (Customer <-> Admin)
+// GET CHAT USERS - Admin mendapat daftar customer yang pernah chat
+// =============================================================================
+exports.getChatUsers = async (req, res) => {
+  try {
+    const user_id = req.user.user_id;
+    const user_role = req.user.role;
+
+    if (user_role !== "admin") {
+      return res.status(403).json({ message: "Only admin can access this" });
+    }
+
+    // Get all messages from customers to avoid GROUP BY issues
+    const customerMessages = await Message.findAll({
+      where: {
+        sender_type: "customer",
+      },
+      include: [
+        {
+          model: User,
+          as: "Sender",
+          attributes: ["user_id", "full_name", "email"],
+          where: { role: "customer" },
+        },
+      ],
+      order: [["created_at", "DESC"]],
+    });
+
+    // Process unique customers manually
+    const uniqueUsers = [];
+    const seenUserIds = new Set();
+
+    for (const message of customerMessages) {
+      if (!seenUserIds.has(message.sender_id)) {
+        seenUserIds.add(message.sender_id);
+
+        // Get latest message for this user
+        const latestMessage = await Message.findOne({
+          where: {
+            [Op.or]: [
+              { sender_id: message.sender_id },
+              { recipient_id: message.sender_id },
+            ],
+          },
+          order: [["created_at", "DESC"]],
+        });
+
+        // Get unread message count from this user
+        const unreadCount = await Message.count({
+          where: {
+            sender_id: message.sender_id,
+            recipient_id: user_id,
+            is_read: false,
+          },
+        });
+
+        uniqueUsers.push({
+          user: message.Sender,
+          latestMessage: latestMessage,
+          unreadCount: unreadCount,
+        });
+      }
+    }
+
+    // Sort by latest message date
+    uniqueUsers.sort((a, b) => {
+      if (!a.latestMessage || !b.latestMessage) return 0;
+      return (
+        new Date(b.latestMessage.created_at) -
+        new Date(a.latestMessage.created_at)
+      );
+    });
+
+    res.json(uniqueUsers);
+  } catch (err) {
+    console.error("Error fetching chat users:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// =============================================================================
+// SEND MESSAGE - Mengirim pesan (via HTTP untuk fallback)
 // =============================================================================
 exports.sendMessage = async (req, res) => {
   try {
-    // Ambil sender_id dari token JWT (user yang mengirim)
     const sender_id = req.user.user_id;
+    const sender_role = req.user.role;
+    const { recipient_id, message } = req.body;
 
-    // Ambil data pesan dari request body
-    const { receiver_id, message_text } = req.body;
+    // Validasi
+    if (!message || message.trim().length === 0) {
+      return res.status(400).json({ message: "Message cannot be empty" });
+    }
 
-    // Buat pesan baru di database
-    const message = await Message.create({
-      sender_id, // ID pengirim pesan
-      receiver_id, // ID penerima pesan
-      message_text, // Isi pesan
+    // Buat pesan baru
+    const newMessage = await Message.create({
+      sender_id,
+      recipient_id: recipient_id || null,
+      message: message.trim(),
+      sender_type: sender_role,
+      is_read: false,
     });
-    res.status(201).json(message);
+
+    // Include sender info dalam response
+    const messageWithSender = await Message.findByPk(newMessage.message_id, {
+      include: [
+        {
+          model: User,
+          as: "Sender",
+          attributes: ["user_id", "full_name", "role"],
+        },
+      ],
+    });
+
+    res.status(201).json({
+      message: "Message sent successfully",
+      data: messageWithSender,
+    });
   } catch (err) {
+    console.error("Error sending message:", err);
     res.status(500).json({ message: err.message });
   }
 };
 
+// =============================================================================
+// MARK MESSAGES AS READ - Menandai pesan sebagai dibaca
+// =============================================================================
 exports.markAsRead = async (req, res) => {
   try {
-    const { message_id } = req.params;
-    const message = await Message.findByPk(message_id);
-    if (!message) return res.status(404).json({ message: "Message not found" });
-    message.is_read = true;
-    await message.save();
-    res.json(message);
+    const user_id = req.user.user_id;
+    const { message_ids } = req.body;
+
+    if (!message_ids || !Array.isArray(message_ids)) {
+      return res.status(400).json({ message: "Invalid message_ids" });
+    }
+
+    // Update status baca hanya untuk pesan yang diterima user ini
+    await Message.update(
+      { is_read: true },
+      {
+        where: {
+          message_id: message_ids,
+          [Op.or]: [
+            { recipient_id: user_id },
+            {
+              recipient_id: null,
+              sender_type: { [Op.ne]: req.user.role },
+            },
+          ],
+        },
+      }
+    );
+
+    res.json({ message: "Messages marked as read" });
   } catch (err) {
+    console.error("Error marking messages as read:", err);
     res.status(500).json({ message: err.message });
   }
 };

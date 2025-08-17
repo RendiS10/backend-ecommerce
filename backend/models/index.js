@@ -1,4 +1,5 @@
 // Relasi antar model
+const { Sequelize, Op } = require("sequelize");
 const Product = require("./product");
 const ProductCategory = require("./product_category");
 const ProductImage = require("./product_image");
@@ -87,11 +88,11 @@ Complaint.belongsTo(User, { foreignKey: "user_id" });
 Order.hasMany(Complaint, { foreignKey: "order_id" });
 Complaint.belongsTo(Order, { foreignKey: "order_id" });
 
-// Relasi pesan (live chat)
+// Relasi pesan (live chat) - Updated untuk real-time chat
 User.hasMany(Message, { foreignKey: "sender_id", as: "SentMessages" });
-User.hasMany(Message, { foreignKey: "receiver_id", as: "ReceivedMessages" });
+User.hasMany(Message, { foreignKey: "recipient_id", as: "ReceivedMessages" });
 Message.belongsTo(User, { foreignKey: "sender_id", as: "Sender" });
-Message.belongsTo(User, { foreignKey: "receiver_id", as: "Receiver" });
+Message.belongsTo(User, { foreignKey: "recipient_id", as: "Recipient" });
 
 // Relasi payment dengan order dan user
 Order.hasOne(Payment, { foreignKey: "order_id" });
@@ -116,4 +117,5 @@ module.exports = {
   Complaint,
   Message,
   Payment,
+  Op,
 };

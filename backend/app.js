@@ -4,6 +4,10 @@ const sequelize = require("./config/database");
 // Mengimpor Express.js - framework web untuk Node.js yang menyediakan fitur server HTTP
 const express = require("express");
 
+// Mengimpor Socket.io untuk real-time chat
+const { createServer } = require("http");
+const { Server } = require("socket.io");
+
 // Mengimpor CORS - middleware untuk mengatur Cross-Origin Resource Sharing
 // Memungkinkan frontend (localhost:5173) mengakses backend (localhost:5000)
 const cors = require("cors");
@@ -25,6 +29,21 @@ require("dotenv").config();
 
 // Membuat instance aplikasi Express yang akan menjadi server utama
 const app = express();
+
+// Membuat HTTP server dan Socket.io server untuk real-time chat
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "http://localhost:3000",
+      "http://127.0.0.1:5173",
+      "http://127.0.0.1:5174",
+    ],
+    credentials: true,
+  },
+});
 
 // Middleware CORS - Mengatur Cross-Origin Resource Sharing
 // Mengizinkan frontend dari domain berbeda untuk mengakses API backend
@@ -152,14 +171,170 @@ const paymentRoutes = require("./routes/paymentRoutes");
 app.use("/api/payments", paymentRoutes); // /api/payments, /api/payments/:id
 
 // =============================================================================
+// SOCKET.IO REAL-TIME CHAT SETUP - Setup untuk live chat real-time
+// =============================================================================
+
+// Store active users dan chat sessions
+const activeUsers = new Map();
+const activeSessions = new Map();
+
+io.on("connection", (socket) => {
+  console.log("User connected:", socket.id);
+
+  // Handle user join chat
+  socket.on("join_chat", async (data) => {
+    const { userId, userRole, userName } = data;
+
+    // Simpan user info
+    activeUsers.set(socket.id, {
+      userId,
+      userRole,
+      userName,
+      socketId: socket.id,
+    });
+
+    socket.join(userRole); // Join room berdasarkan role (customer/admin)
+
+    console.log(`${userName} (${userRole}) joined chat`);
+
+    // Notify admin tentang customer baru yang online
+    if (userRole === "customer") {
+      socket.to("admin").emit("customer_online", {
+        userId,
+        userName,
+        socketId: socket.id,
+      });
+    }
+
+    // Send list of online customers to admin
+    if (userRole === "admin") {
+      const onlineCustomers = Array.from(activeUsers.values()).filter(
+        (user) => user.userRole === "customer"
+      );
+      socket.emit("online_customers", onlineCustomers);
+    }
+  });
+
+  // Handle new message
+  socket.on("send_message", async (data) => {
+    const { message, recipientId, senderId, senderRole } = data;
+    const user = activeUsers.get(socket.id);
+
+    if (!user) return;
+
+    // Simpan pesan ke database
+    try {
+      const { Message } = require("./models");
+      const newMessage = await Message.create({
+        sender_id: senderId,
+        recipient_id: recipientId || null,
+        message: message,
+        sender_type: senderRole,
+        is_read: false,
+      });
+
+      const messageData = {
+        message_id: newMessage.message_id,
+        message: newMessage.message,
+        sender_id: newMessage.sender_id,
+        recipient_id: newMessage.recipient_id,
+        sender_type: newMessage.sender_type,
+        created_at: newMessage.created_at,
+        sender_name: user.userName,
+      };
+
+      // Kirim ke recipient yang spesifik
+      if (recipientId && senderRole === "admin") {
+        // Admin mengirim ke customer tertentu
+        const recipientSocket = Array.from(activeUsers.entries()).find(
+          ([socketId, userData]) => userData.userId == recipientId
+        );
+
+        if (recipientSocket) {
+          io.to(recipientSocket[0]).emit("new_message", messageData);
+        }
+      } else if (senderRole === "customer") {
+        // Customer mengirim ke semua admin
+        socket.to("admin").emit("new_message", messageData);
+      }
+
+      // Send back to sender for confirmation
+      socket.emit("message_sent", messageData);
+    } catch (error) {
+      console.error("Error saving message:", error);
+      socket.emit("message_error", { error: "Failed to send message" });
+    }
+  });
+
+  // Handle typing indicator
+  socket.on("typing", (data) => {
+    const { recipientId, senderRole, isTyping } = data;
+    const user = activeUsers.get(socket.id);
+
+    if (!user) return;
+
+    if (senderRole === "customer") {
+      socket.to("admin").emit("user_typing", {
+        userId: user.userId,
+        userName: user.userName,
+        isTyping,
+      });
+    } else if (senderRole === "admin" && recipientId) {
+      const recipientSocket = Array.from(activeUsers.entries()).find(
+        ([socketId, userData]) => userData.userId == recipientId
+      );
+
+      if (recipientSocket) {
+        io.to(recipientSocket[0]).emit("admin_typing", { isTyping });
+      }
+    }
+  });
+
+  // Handle mark message as read
+  socket.on("mark_read", async (data) => {
+    const { messageIds } = data;
+    try {
+      const { Message } = require("./models");
+      await Message.update(
+        { is_read: true },
+        { where: { message_id: messageIds } }
+      );
+    } catch (error) {
+      console.error("Error marking messages as read:", error);
+    }
+  });
+
+  // Handle disconnect
+  socket.on("disconnect", () => {
+    const user = activeUsers.get(socket.id);
+    if (user) {
+      console.log(`${user.userName} disconnected`);
+
+      // Notify admin about customer going offline
+      if (user.userRole === "customer") {
+        socket.to("admin").emit("customer_offline", {
+          userId: user.userId,
+          userName: user.userName,
+        });
+      }
+
+      activeUsers.delete(socket.id);
+    }
+  });
+});
+
+// =============================================================================
 // DATABASE CONNECTION & SERVER STARTUP - Koneksi database dan start server
 // =============================================================================
 
 // Melakukan sinkronisasi database dengan model Sequelize
 // Membuat/update tabel sesuai dengan definisi model yang ada
 sequelize.sync().then(() => {
-  // Menjalankan server Express pada port dari environment variable atau default 3000
+  // Menjalankan server Express pada port dari environment variable atau default 5000
   // Server akan siap menerima request HTTP dari frontend
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => console.log(`Server Berjalan di port ${PORT}`));
+  const PORT = process.env.PORT || 5000;
+  httpServer.listen(PORT, () => {
+    console.log(`Server Berjalan di port ${PORT}`);
+    console.log("Socket.io server ready for real-time chat");
+  });
 });
