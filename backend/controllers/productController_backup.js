@@ -1,4 +1,11 @@
-// =============================================================================
+// =====================================    // Ambil semua produk dengan relasi (join) ke tabel terkait
+    const products = await Product.findAll({
+      where, // Filter berdasarkan kategori (jika ada)
+      include: [ProductCategory, ProductImage, ProductVariant], // Join dengan tabel relasi
+    });
+
+    // Kirim response dengan data produk
+    res.json(products);=======================
 // PRODUCT CONTROLLER - Controller untuk mengelola data produk JKT48 merchandise
 // =============================================================================
 

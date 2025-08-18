@@ -5,6 +5,7 @@ const { body } = require("express-validator");
 const { isAuthenticated, isAdmin } = require("../middlewares/auth");
 
 router.get("/", productController.getAllProducts);
+router.get("/search", productController.searchProducts); // Route search harus di atas :id
 router.get("/:id", productController.getProductById);
 router.post(
   "/",

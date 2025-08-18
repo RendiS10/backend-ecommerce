@@ -4,6 +4,7 @@
 
 // Mengimpor model yang dibutuhkan untuk operasi review
 const { Review, Product, User, Order, OrderItem } = require("../models");
+const { updateProductRatings } = require("./productController");
 
 // =============================================================================
 // GET ALL REVIEWS - Mengambil semua review (untuk admin)
@@ -122,6 +123,9 @@ exports.createReview = async (req, res) => {
       rating, // Rating 1-5 bintang
       comment: comment || "", // Komentar/ulasan customer
     });
+
+    // Update rating dan total review pada produk
+    await updateProductRatings(product_id);
 
     // Kirim response dengan review yang baru dibuat
     res.status(201).json({
