@@ -6,6 +6,8 @@ const { isAuthenticated, isAdmin } = require("../middlewares/auth");
 
 router.get("/", productController.getAllProducts);
 router.get("/search", productController.searchProducts); // Route search harus di atas :id
+// Route untuk reset rating produk (DEV ONLY) - harus di atas :id
+router.put("/:productId/reset-rating", productController.resetProductRating);
 router.get("/:id", productController.getProductById);
 router.post(
   "/",

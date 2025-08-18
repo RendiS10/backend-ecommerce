@@ -238,27 +238,20 @@ exports.updateProductRatings = async (productId) => {
 };
 
 // =============================================================================
-// TEST ENDPOINT - Tambah review dummy untuk testing (DEV ONLY)
+// RESET RATINGS - Reset rating untuk produk tertentu (DEV ONLY)
 // =============================================================================
-exports.addDummyReview = async (req, res) => {
+exports.resetProductRating = async (req, res) => {
   try {
-    const { productId, rating, comment } = req.body;
+    const { productId } = req.params;
 
-    // Buat review dummy (tanpa validasi order untuk testing)
-    const review = await Review.create({
-      product_id: productId,
-      user_id: 1, // Dummy user ID
-      order_id: null, // Null karena ini testing
-      rating: rating,
-      comment: comment || "Test review",
-    });
-
-    // Update rating produk
-    await exports.updateProductRatings(productId);
+    // Update rating produk berdasarkan review yang ada
+    const result = await exports.updateProductRatings(productId);
 
     res.json({
-      message: "Dummy review added successfully",
-      review,
+      message: "Product rating updated successfully",
+      productId: productId,
+      averageRating: result.averageRating,
+      totalReviews: result.totalReviews,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
