@@ -134,10 +134,6 @@ app.use("/api/news", newsRoutes); // /api/news, /api/news/:id
 const reviewRoutes = require("./routes/reviewRoutes");
 app.use("/api/reviews", reviewRoutes); // /api/reviews, /api/reviews/:id
 
-// Complaint Routes - Endpoint untuk CRUD keluhan pelanggan
-const complaintRoutes = require("./routes/complaintRoutes");
-app.use("/api/complaints", complaintRoutes); // /api/complaints, /api/complaints/:id
-
 // Cart Routes - Endpoint untuk keranjang belanja (add, remove, view)
 const cartRoutes = require("./routes/cartRoutes");
 app.use("/api/cart", cartRoutes); // /api/cart, /api/cart/add, /api/cart/remove

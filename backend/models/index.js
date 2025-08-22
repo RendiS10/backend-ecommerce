@@ -12,7 +12,6 @@ const Cart = require("./cart");
 const CartItem = require("./cart_item");
 const Review = require("./review");
 const Transaction = require("./transaction");
-const Complaint = require("./complaint");
 const Message = require("./message");
 const Payment = require("./payment");
 
@@ -80,14 +79,6 @@ Review.belongsTo(Order, { foreignKey: "order_id" });
 Order.hasMany(Transaction, { foreignKey: "order_id" });
 Transaction.belongsTo(Order, { foreignKey: "order_id" });
 
-// Relasi user dengan complaint
-User.hasMany(Complaint, { foreignKey: "user_id" });
-Complaint.belongsTo(User, { foreignKey: "user_id" });
-
-// Relasi order dengan complaint
-Order.hasMany(Complaint, { foreignKey: "order_id" });
-Complaint.belongsTo(Order, { foreignKey: "order_id" });
-
 // Relasi pesan (live chat) - Updated untuk real-time chat
 User.hasMany(Message, { foreignKey: "sender_id", as: "SentMessages" });
 User.hasMany(Message, { foreignKey: "recipient_id", as: "ReceivedMessages" });
@@ -114,7 +105,6 @@ module.exports = {
   CartItem,
   Review,
   Transaction,
-  Complaint,
   Message,
   Payment,
   Op,

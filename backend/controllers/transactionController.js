@@ -1,56 +1,145 @@
 // =============================================================================
-// TRANSACTION CONTROLLER - Controller untuk mengelola transaksi pembayaran
+// TRANSACTION CONTROLLER - Controller untuk mengelola laporan penjualan dan transaksi
 // =============================================================================
 
 // Mengimpor model yang dibutuhkan untuk operasi transaksi
-const { Transaction, Order } = require("../models");
+const { Transaction, Order, OrderItem, Product, User } = require("../models");
+const { Op } = require("sequelize");
 
 // =============================================================================
-// GET ORDER TRANSACTIONS - Mengambil semua transaksi untuk pesanan tertentu
+// GET ALL TRANSACTIONS - Mengambil semua transaksi berdasarkan order yang completed
 // =============================================================================
-exports.getOrderTransactions = async (req, res) => {
+exports.getAllTransactions = async (req, res) => {
   try {
-    // Ambil order_id dari URL parameter (/api/transactions/order/:order_id)
-    const { order_id } = req.params;
+    // Ambil semua order yang sudah completed/delivered
+    const completedOrders = await Order.findAll({
+      where: {
+        order_status: ["Selesai", "Dikirim"], // Order yang sudah selesai
+      },
+      include: [
+        {
+          model: OrderItem,
+          include: [
+            {
+              model: Product,
+              attributes: ["product_name", "price"],
+            },
+          ],
+        },
+        {
+          model: User,
+          attributes: ["full_name", "email"],
+        },
+      ],
+      order: [["order_date", "DESC"]],
+    });
 
-    // Cari semua transaksi untuk pesanan tersebut (bisa ada multiple attempts)
-    const transactions = await Transaction.findAll({ where: { order_id } });
+    // Transform data untuk format transaction report
+    const transactions = [];
+
+    completedOrders.forEach((order) => {
+      order.OrderItems.forEach((item) => {
+        const revenue = parseFloat(item.Product.price) * item.quantity;
+
+        transactions.push({
+          transaction_id: `ORD-${order.order_id}-${item.order_item_id}`,
+          order_id: order.order_id,
+          tracking_number: order.tracking_number,
+          product_name: item.Product.product_name,
+          product_price: parseFloat(item.Product.price),
+          quantity: item.quantity,
+          revenue: revenue,
+          customer_name: order.User.full_name,
+          customer_email: order.User.email,
+          order_status: order.order_status,
+          payment_method: order.payment_method,
+          transaction_date: order.order_date,
+          completed_date: order.order_date,
+        });
+      });
+    });
 
     // Kirim response dengan daftar transaksi
     res.json(transactions);
   } catch (err) {
-    // Handle error database
+    console.error("Error fetching transactions:", err);
     res.status(500).json({ message: err.message });
   }
 };
 
 // =============================================================================
-// CREATE TRANSACTION - Membuat record transaksi baru (dari payment gateway)
+// GET TRANSACTION STATS - Mengambil statistik penjualan
 // =============================================================================
-exports.createTransaction = async (req, res) => {
+exports.getTransactionStats = async (req, res) => {
   try {
-    // Ambil data transaksi dari request body (biasanya dari payment gateway callback)
-    const {
-      order_id, // ID pesanan yang dibayar
-      payment_gateway_ref, // Referensi dari payment gateway (QRIS, GoPay, dll)
-      amount, // Jumlah yang dibayar
-      currency, // Mata uang (IDR, USD, dll)
-      transaction_status, // Status: pending, success, failed, refunded
-    } = req.body;
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const yearStart = new Date(now.getFullYear(), 0, 1);
 
-    // Buat record transaksi baru di database
-    const transaction = await Transaction.create({
-      order_id,
-      payment_gateway_ref,
-      amount,
-      currency,
-      transaction_status,
+    // Ambil semua order yang sudah completed
+    const completedOrders = await Order.findAll({
+      where: {
+        order_status: ["Selesai", "Dikirim"],
+      },
+      include: [
+        {
+          model: OrderItem,
+          include: [
+            {
+              model: Product,
+              attributes: ["price"],
+            },
+          ],
+        },
+      ],
     });
 
-    // Kirim response dengan transaksi yang baru dibuat
-    res.status(201).json(transaction);
+    // Hitung statistik
+    let totalRevenue = 0;
+    let todayRevenue = 0;
+    let monthlyRevenue = 0;
+    let yearlyRevenue = 0;
+    let totalTransactions = 0;
+    let totalProductsSold = 0;
+
+    completedOrders.forEach((order) => {
+      const orderDate = new Date(order.order_date);
+
+      order.OrderItems.forEach((item) => {
+        const revenue = parseFloat(item.Product.price) * item.quantity;
+        totalRevenue += revenue;
+        totalTransactions += 1;
+        totalProductsSold += item.quantity;
+
+        // Revenue hari ini
+        if (orderDate >= today) {
+          todayRevenue += revenue;
+        }
+
+        // Revenue bulan ini
+        if (orderDate >= monthStart) {
+          monthlyRevenue += revenue;
+        }
+
+        // Revenue tahun ini
+        if (orderDate >= yearStart) {
+          yearlyRevenue += revenue;
+        }
+      });
+    });
+
+    res.json({
+      totalRevenue,
+      todayRevenue,
+      monthlyRevenue,
+      yearlyRevenue,
+      transactionCount: totalTransactions,
+      totalOrders: completedOrders.length,
+      totalProductsSold,
+    });
   } catch (err) {
-    // Handle error (validation error, foreign key constraint, dll)
+    console.error("Error fetching transaction stats:", err);
     res.status(500).json({ message: err.message });
   }
 };
