@@ -43,7 +43,7 @@ const Order = sequelize.define(
 
 // Force sync the model schema on startup (only in development)
 if (process.env.NODE_ENV !== "production") {
-  Order.sync({ alter: true })
+  Order.sync({ force: false })
     .then(() => {
       console.log("✅ Order model schema synced successfully");
     })

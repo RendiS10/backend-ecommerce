@@ -25,7 +25,7 @@ const ProductCategory = sequelize.define(
 
 // Force sync the model schema on startup (only in development)
 if (process.env.NODE_ENV !== "production") {
-  ProductCategory.sync({ alter: true })
+  ProductCategory.sync({ force: false })
     .then(() => {
       console.log("✅ ProductCategory model schema synced successfully");
     })
