@@ -56,6 +56,7 @@ app.use(
       "http://localhost:3000", // React/Next.js development server
       "http://127.0.0.1:5173", // IP address version untuk Vite
       "http://127.0.0.1:5174", // IP address version untuk Vite alternatif
+      "https://e-commerce-jkt48.vercel.app", // domain frontend Vercel
     ],
     // Mengizinkan pengiriman cookies dan header authentication
     credentials: true,
