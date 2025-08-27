@@ -40,8 +40,17 @@ const io = new Server(httpServer, {
       "http://localhost:3000",
       "http://127.0.0.1:5173",
       "http://127.0.0.1:5174",
+      "https://e-commerce-jkt48.vercel.app",
+      "https://e-commerce-jkt48-2ubf.vercel.app",
+      "https://e-commerce-jkt48-prototype-production.up.railway.app",
     ],
     credentials: true,
+    methods: ["GET", "POST"],
+    allowedHeaders: [
+      "Access-Control-Allow-Origin",
+      "Access-Control-Allow-Credentials",
+      "Content-Type",
+    ],
   },
 });
 
@@ -49,18 +58,23 @@ const io = new Server(httpServer, {
 // Mengizinkan frontend dari domain berbeda untuk mengakses API backend
 app.use(
   cors({
-    // Daftar URL frontend yang diizinkan mengakses backend
     origin: [
-      "http://localhost:5173", // Vite development server (port utama)
-      "http://localhost:5174", // Vite development server (port alternatif)
-      "http://localhost:3000", // React/Next.js development server
-      "http://127.0.0.1:5173", // IP address version untuk Vite
-      "http://127.0.0.1:5174", // IP address version untuk Vite alternatif
-      "https://e-commerce-jkt48.vercel.app", // domain frontend Vercel
-      "https://e-commerce-jkt48-2ubf.vercel.app", // domain frontend Vercel baru
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "http://localhost:3000",
+      "http://127.0.0.1:5173",
+      "http://127.0.0.1:5174",
+      "https://e-commerce-jkt48.vercel.app",
+      "https://e-commerce-jkt48-2ubf.vercel.app",
+      "https://e-commerce-jkt48-prototype-production.up.railway.app",
     ],
-    // Mengizinkan pengiriman cookies dan header authentication
     credentials: true,
+    methods: ["GET", "POST"],
+    allowedHeaders: [
+      "Access-Control-Allow-Origin",
+      "Access-Control-Allow-Credentials",
+      "Content-Type",
+    ],
   })
 );
 
