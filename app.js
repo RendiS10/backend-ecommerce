@@ -65,7 +65,7 @@ app.use(
       "https://e-commerce-jkt48-prototype-production.up.railway.app",
     ],
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"],
     allowedHeaders: ["Content-Type", "authorization"],
   })
 );
