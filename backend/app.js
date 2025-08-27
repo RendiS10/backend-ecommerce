@@ -57,6 +57,7 @@ app.use(
       "http://127.0.0.1:5173", // IP address version untuk Vite
       "http://127.0.0.1:5174", // IP address version untuk Vite alternatif
       "https://e-commerce-jkt48.vercel.app", // domain frontend Vercel
+      "https://e-commerce-jkt48-2ubf.vercel.app", // domain frontend Vercel baru
     ],
     // Mengizinkan pengiriman cookies dan header authentication
     credentials: true,
