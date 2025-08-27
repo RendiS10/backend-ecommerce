@@ -45,12 +45,8 @@ const io = new Server(httpServer, {
       "https://e-commerce-jkt48-prototype-production.up.railway.app",
     ],
     credentials: true,
-    methods: ["GET", "POST"],
-    allowedHeaders: [
-      "Access-Control-Allow-Origin",
-      "Access-Control-Allow-Credentials",
-      "Content-Type",
-    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "authorization"],
   },
 });
 
@@ -69,17 +65,10 @@ app.use(
       "https://e-commerce-jkt48-prototype-production.up.railway.app",
     ],
     credentials: true,
-    methods: ["GET", "POST"],
-    allowedHeaders: [
-      "Access-Control-Allow-Origin",
-      "Access-Control-Allow-Credentials",
-      "Content-Type",
-    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "authorization"],
   })
 );
-
-// Middleware Helmet - Menambahkan security headers untuk melindungi dari serangan web
-// (XSS protection, content type sniffing protection, clickjacking protection, dll)
 app.use(helmet());
 
 // Middleware Morgan - Logging setiap HTTP request yang masuk ke server
