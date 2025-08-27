@@ -398,3 +398,33 @@ sequelize.sync().then(() => {
     console.log("Socket.io server ready for real-time chat");
   });
 });
+
+const fs = require("fs");
+let marked;
+try {
+  marked = require("marked");
+} catch (e) {
+  marked = null;
+}
+
+app.get("/", (req, res) => {
+  fs.readFile(path.join(__dirname, "README.md"), "utf8", (err, data) => {
+    if (err) return res.status(500).send("Error loading README");
+    if (marked) {
+      const html = marked.parse(data);
+      res.send(`
+        <html>
+          <head>
+            <title>JKT48 E-Commerce Backend API</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+          </head>
+          <body style="max-width:800px;margin:auto;padding:2rem;font-family:sans-serif;background:#fafafa;">
+            ${html}
+          </body>
+        </html>
+      `);
+    } else {
+      res.type("text/plain").send(data);
+    }
+  });
+});
