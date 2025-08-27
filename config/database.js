@@ -6,7 +6,7 @@ require("dotenv").config();
 const sequelize = new Sequelize(
   process.env.DB_NAME, // Nama database
   process.env.DB_USER, // Username database
-  process.env.DB_PASS, // Password database
+  process.env.DB_PASSWORD, // Password database
   {
     host: process.env.DB_HOST, // Host database
     dialect: "mysql", // Jenis database yang digunakan
